@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0",
+  "lastModified": "2026-02-25T00:00:00.000Z",
+  "settings": {
+    "statuses": [
+      { "id": "intake", "label": "Intake", "system": true, "folder": "1-pending", "color": "#e5c07b" },
+      { "id": "ready", "label": "Ready", "folder": "1-pending", "color": "#9ca3af" },
+      { "id": "active", "label": "Active", "system": true, "folder": "2-in_progress", "color": "#61afef" },
+      { "id": "blocked", "label": "Blocked", "folder": "2-in_progress", "color": "#e06c75" },
+      { "id": "done", "label": "Done", "system": true, "folder": "3-completed", "color": "#98c379" },
+      { "id": "archive", "label": "Archive", "system": true, "folder": "3-completed", "color": "#5c6370" }
+    ],
+    "phases": [
+      { "id": "planning", "label": "Planning", "color": "#e5c07b" },
+      { "id": "development", "label": "Development", "color": "#61afef" },
+      { "id": "testing", "label": "Testing", "color": "#9ca3af" },
+      { "id": "production", "label": "Production", "color": "#98c379" }
+    ],
+    "tracks": [
+      { "id": "frontend", "label": "Frontend", "color": "#3b82f6" },
+      { "id": "backend", "label": "Backend", "color": "#22c55e" },
+      { "id": "infra", "label": "Infra", "color": "#f97316" },
+      { "id": "docs", "label": "Docs", "color": "#a855f7" }
+    ],
+    "transitions": {
+      "intake": ["ready", "active"],
+      "ready": ["active"],
+      "active": ["blocked", "done"],
+      "blocked": ["active"],
+      "done": ["archive"]
+    }
+  },
+  "items": [
+    {
+      "id": "WQ-001",
+      "title": "Example: Getting Started",
+      "summary": "This is a sample work queue item. Edit or delete it and create your own items using the CLI.",
+      "status": "intake",
+      "track": "docs",
+      "phase": "planning",
+      "priority": 50,
+      "effort": "1h",
+      "tags": ["example", "starter"],
+      "dependsOn": [],
+      "documents": [],
+      "created": "2026-02-25T00:00:00.000Z",
+      "modified": "2026-02-25T00:00:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,292 @@
+{
+  "name": "purr-wq-viewer",
+  "displayName": "PURR Work Queue",
+  "description": "Work Queue sidebar for PURR/Stratagem project management",
+  "version": "0.9.0",
+  "publisher": "purr-lms",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "purr-wq",
+          "title": "Work Queue",
+          "icon": "media/wq-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "purr-wq": [
+        {
+          "id": "wqItems",
+          "name": "Items",
+          "contextualTitle": "Work Queue"
+        },
+        {
+          "id": "wqActiveWork",
+          "name": "Active Work",
+          "contextualTitle": "Active Items"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "purr-wq.refresh",
+        "title": "WQ: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "purr-wq.groupByPhase",
+        "title": "WQ: Group by Phase"
+      },
+      {
+        "command": "purr-wq.groupByStatus",
+        "title": "WQ: Group by Status"
+      },
+      {
+        "command": "purr-wq.groupByTrack",
+        "title": "WQ: Group by Track"
+      },
+      {
+        "command": "purr-wq.groupByGrade",
+        "title": "WQ: Group by Grade"
+      },
+      {
+        "command": "purr-wq.openSpec",
+        "title": "WQ: Open Spec/Brief",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "purr-wq.openWorklist",
+        "title": "WQ: Open Worklist",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "purr-wq.copyId",
+        "title": "WQ: Copy ID"
+      },
+      {
+        "command": "purr-wq.filterItems",
+        "title": "WQ: Filter Items",
+        "icon": "$(search)"
+      },
+      {
+        "command": "purr-wq.clearFilter",
+        "title": "WQ: Clear Filter",
+        "icon": "$(close)"
+      },
+      {
+        "command": "purr-wq.startWork",
+        "title": "WQ: Start Work",
+        "icon": "$(play)"
+      },
+      {
+        "command": "purr-wq.markReady",
+        "title": "WQ: Mark Ready"
+      },
+      {
+        "command": "purr-wq.markBlocked",
+        "title": "WQ: Mark Blocked"
+      },
+      {
+        "command": "purr-wq.markDone",
+        "title": "WQ: Mark Done",
+        "icon": "$(check)"
+      },
+      {
+        "command": "purr-wq.archive",
+        "title": "WQ: Archive"
+      },
+      {
+        "command": "purr-wq.delegateExplore",
+        "title": "WQ: Delegate → Explore Agent"
+      },
+      {
+        "command": "purr-wq.delegatePlan",
+        "title": "WQ: Delegate → Plan Agent"
+      },
+      {
+        "command": "purr-wq.delegateTriage",
+        "title": "WQ: Triage Pre-Beta"
+      },
+      {
+        "command": "purr-wq.openBoard",
+        "title": "WQ: Open Board",
+        "icon": "$(dashboard)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "purr-wq.refresh",
+          "when": "view == wqItems || view == wqActiveWork",
+          "group": "navigation"
+        },
+        {
+          "command": "purr-wq.openBoard",
+          "when": "view == wqItems",
+          "group": "navigation"
+        },
+        {
+          "command": "purr-wq.filterItems",
+          "when": "view == wqItems",
+          "group": "navigation"
+        },
+        {
+          "command": "purr-wq.groupByPhase",
+          "when": "view == wqItems",
+          "group": "1_grouping"
+        },
+        {
+          "command": "purr-wq.groupByStatus",
+          "when": "view == wqItems",
+          "group": "1_grouping"
+        },
+        {
+          "command": "purr-wq.groupByTrack",
+          "when": "view == wqItems",
+          "group": "1_grouping"
+        },
+        {
+          "command": "purr-wq.groupByGrade",
+          "when": "view == wqItems",
+          "group": "1_grouping"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "purr-wq.startWork",
+          "when": "viewItem =~ /wqItem\\.(intake|ready|blocked)/",
+          "group": "1_status"
+        },
+        {
+          "command": "purr-wq.markReady",
+          "when": "viewItem =~ /wqItem\\.intake/",
+          "group": "1_status"
+        },
+        {
+          "command": "purr-wq.markBlocked",
+          "when": "viewItem =~ /wqItem\\.active/",
+          "group": "1_status"
+        },
+        {
+          "command": "purr-wq.markDone",
+          "when": "viewItem =~ /wqItem\\.active/",
+          "group": "1_status"
+        },
+        {
+          "command": "purr-wq.archive",
+          "when": "viewItem =~ /wqItem\\.done/",
+          "group": "1_status"
+        },
+        {
+          "command": "purr-wq.openSpec",
+          "when": "viewItem =~ /wqItem.*hasDoc/",
+          "group": "2_docs"
+        },
+        {
+          "command": "purr-wq.openWorklist",
+          "when": "viewItem =~ /wqItem.*hasWorklist/",
+          "group": "2_docs"
+        },
+        {
+          "command": "purr-wq.copyId",
+          "when": "viewItem =~ /wqItem/",
+          "group": "3_util"
+        },
+        {
+          "command": "purr-wq.delegateExplore",
+          "when": "viewItem =~ /wqItem/",
+          "group": "4_delegate"
+        },
+        {
+          "command": "purr-wq.delegatePlan",
+          "when": "viewItem =~ /wqItem/",
+          "group": "4_delegate"
+        }
+      ],
+      "inline": [
+        {
+          "command": "purr-wq.startWork",
+          "when": "viewItem =~ /wqItem\\.(intake|ready)/",
+          "group": "inline"
+        },
+        {
+          "command": "purr-wq.markDone",
+          "when": "viewItem =~ /wqItem\\.active/",
+          "group": "inline"
+        },
+        {
+          "command": "purr-wq.openSpec",
+          "when": "viewItem =~ /wqItem.*hasDoc/",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "PURR Work Queue",
+      "properties": {
+        "purr-wq.defaultGrouping": {
+          "type": "string",
+          "enum": [
+            "phase",
+            "status",
+            "track",
+            "grade"
+          ],
+          "default": "phase",
+          "description": "Default grouping for WQ items"
+        },
+        "purr-wq.showArchived": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show archived items in tree"
+        },
+        "purr-wq.showDone": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show completed items in tree"
+        },
+        "purr-wq.openCCSidebar": {
+          "type": "boolean",
+          "default": false,
+          "description": "Open Claude Code sidebar when delegating prompts"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "npm run compile:ext && npm run compile:webview",
+    "compile:ext": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "compile:webview": "esbuild src/webview/main.tsx --bundle --outfile=dist/webview/main.js --format=iife --platform=browser --sourcemap --jsx=automatic",
+    "watch:ext": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
+    "watch:webview": "esbuild src/webview/main.tsx --bundle --outfile=dist/webview/main.js --format=iife --platform=browser --sourcemap --jsx=automatic --watch",
+    "lint": "tsc --noEmit",
+    "package": "npm run compile && npx vsce package"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@types/dagre": "^0.7.53",
+    "dagre": "^0.8.5",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "reactflow": "^11.11.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  }
+}
