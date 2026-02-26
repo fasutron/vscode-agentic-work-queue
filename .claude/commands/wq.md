@@ -136,6 +136,54 @@ node documents/wq-system/wq-cli.js edit WQ-XXX --add-doc="worklist:<path-to-work
 
 **Do NOT auto-create** for any other status transition (`blocked`, `done`, `intake`, etc.).
 
+### Auto-Create Test Plan on `active`
+
+After creating the worklist, also create a test plan file if one doesn't already exist:
+
+1. Check for an existing `*TEST_PLAN*` or `*TESTING_CHECKLIST*` file containing `WQ Item: <WQ-ID>`
+2. If none found, create one:
+
+```markdown
+# [Title from WQ item] TEST PLAN
+
+**WQ Item:** WQ-XXX
+**Created:** YYYY-MM-DD
+
+## Smoke Tests
+- [ ] Feature loads without console errors
+- [ ] Core UI elements render correctly
+
+## Functional Tests
+- [ ] Primary user flow works end-to-end
+
+## Edge Cases
+(None yet)
+
+## Regression
+(None yet)
+```
+
+3. Use naming convention: `<WQ-ID>_<Title_Snake_Case>_TEST_PLAN.md` (e.g., `WQ085_User_Auth_TEST_PLAN.md`)
+4. Place in the same folder as the worklist (`documents/handoffs/2-in_progress/`)
+5. Link back to the WQ item:
+```bash
+node documents/wq-system/wq-cli.js edit WQ-XXX --add-doc="testplan:<path-to-test-plan>"
+```
+6. Report: "Created test plan: `<path>`"
+
+---
+
+## Testing Best Practices
+
+When working on a WQ item, maintain its test plan throughout development:
+- **Always use checklist format** (`- [ ]`/`- [x]`/`- [!]`) — this enables full interactive editing in the VS Code WQ extension's Testing tab
+- Do NOT use markdown table format for new test plans — table-format files are displayed read-only in the extension
+- Use `- [ ]` for pending, `- [x]` for passed, `- [!]` for failed tests
+- Group tests by type: Smoke Tests, Functional Tests, Edge Cases, Regression
+- When a test fails, use the Testing tab to file bugs directly to the worklist
+- Review and update the test plan before marking a WQ item as `done`
+- Use naming convention: `*_TEST_PLAN.md` or `*_Tests.md` — the extension discovers files by these patterns
+
 ---
 
 ## Action: EDIT

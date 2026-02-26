@@ -152,6 +152,10 @@ Worklists are **automatically created** by `/project:wq` when a WQ item transiti
 
 Use `/project:wl create` only for standalone session work that has no WQ item.
 
+## Bug Filing from Testing
+
+The VS Code WQ extension's **Testing tab** allows you to file bugs from failed tests directly into the worklist. When a test is marked as failed (`- [!]`), clicking the bug icon creates a `[TEST FAIL] <description>` task in a "Bugs from Testing" section of the worklist. These bugs appear as regular unchecked worklist tasks and can be managed with the standard worklist commands above.
+
 ## Rules
 
 1. **Always find before operating** — never guess the file path
