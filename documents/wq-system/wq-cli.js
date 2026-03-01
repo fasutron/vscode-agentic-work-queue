@@ -113,6 +113,15 @@ function folderForStatus(status, statusFolder) {
   return (statusFolder || DEFAULT_STATUS_FOLDER)[status] || '1-pending';
 }
 
+/**
+ * Normalize a document path to be relative to HANDOFFS_DIR.
+ * Strips leading "documents/handoffs/" prefix if present, so
+ * path.join(HANDOFFS_DIR, result) always produces a valid path.
+ */
+function normalizeDocPath(docPath) {
+  return docPath.replace(/^documents\/handoffs\//, '');
+}
+
 // ============================================================
 // COMMANDS
 // ============================================================
@@ -239,14 +248,17 @@ function cmdStatus(args) {
   // Move documents if folder changed
   if (oldFolder !== newFolder) {
     for (const doc of item.documents) {
-      const oldPath = path.join(HANDOFFS_DIR, doc.path);
-      const filename = path.basename(doc.path);
+      const relativePath = normalizeDocPath(doc.path);
+      const oldPath = path.join(HANDOFFS_DIR, relativePath);
+      const filename = path.basename(relativePath);
       const newPath = path.join(HANDOFFS_DIR, newFolder, filename);
 
       if (fs.existsSync(oldPath)) {
         fs.renameSync(oldPath, newPath);
         doc.path = `${newFolder}/${filename}`;
         console.log(`Moved: ${filename} → ${newFolder}/`);
+      } else {
+        console.warn(`⚠️  File not found, skipping: ${doc.path} (resolved to ${oldPath})`);
       }
     }
   }
@@ -353,11 +365,19 @@ function cmdEdit(args) {
     }
   }
 
-  // Add document
+  // Add document (normalize path, deduplicate by type)
   if (parsed['add-doc']) {
-    const [type, docPath] = parsed['add-doc'].split(':');
-    item.documents.push({ type, path: docPath });
-    changes.push(`documents: added ${type}:${docPath}`);
+    const [type, rawDocPath] = parsed['add-doc'].split(':');
+    const docPath = normalizeDocPath(rawDocPath);
+    const existingIdx = item.documents.findIndex(d => d.type === type);
+    if (existingIdx !== -1) {
+      const oldDocPath = item.documents[existingIdx].path;
+      item.documents[existingIdx].path = docPath;
+      changes.push(`documents: replaced ${type}: "${oldDocPath}" → "${docPath}"`);
+    } else {
+      item.documents.push({ type, path: docPath });
+      changes.push(`documents: added ${type}:${docPath}`);
+    }
   }
 
   if (changes.length === 0) {
@@ -577,6 +597,31 @@ function cmdDeps(args) {
   }
 }
 
+function cmdNormalize() {
+  const wq = loadWQ();
+  let fixCount = 0;
+
+  for (const item of wq.items) {
+    if (!item.documents) continue;
+    for (const doc of item.documents) {
+      if (!doc.path) continue;
+      const normalized = normalizeDocPath(doc.path);
+      if (normalized !== doc.path) {
+        console.log(`  ${item.id}: "${doc.path}" → "${normalized}"`);
+        doc.path = normalized;
+        fixCount++;
+      }
+    }
+  }
+
+  if (fixCount === 0) {
+    console.log('\n✅ All document paths are already normalized.');
+  } else {
+    saveWQ(wq);
+    console.log(`\n✅ Normalized ${fixCount} document path(s).`);
+  }
+}
+
 function cmdFind(args) {
   const parsed = parseArgs(args);
   const searchPath = parsed._positional[0];
@@ -686,6 +731,9 @@ switch (command) {
   case 'find':
     cmdFind(args);
     break;
+  case 'normalize':
+    cmdNormalize();
+    break;
   case 'help':
   case '--help':
   case '-h':
@@ -702,6 +750,7 @@ Usage:
   wq-cli.js deps <WQ-ID> [--reverse]
   wq-cli.js deps --blocked
   wq-cli.js find <path-or-filename>
+  wq-cli.js normalize
   wq-cli.js next-id
 
 Create Options:
@@ -734,6 +783,10 @@ Deps Options:
 Find:
   Looks up which WQ item(s) a handoff document belongs to.
   Accepts filename, relative path, or full path.
+
+Normalize:
+  Strips "documents/handoffs/" prefix from all document paths.
+  Safe to run multiple times (idempotent).
 
 Statuses: ${helpCfg.VALID_STATUSES.join(', ')}
 Tracks: ${helpCfg.VALID_TRACKS.join(', ')}
