@@ -1,5 +1,5 @@
 // Item detail panel with inline editing for status, track, and phase.
-// Includes a "Worklist" sub-tab for viewing/editing individual worklist tasks.
+// Includes "Worklist" and "Testing" sub-tabs for viewing/editing tasks and tests.
 // Actions route through postMessage to extension host → wq-cli.js.
 
 import { useState, useEffect, useCallback } from 'react';
@@ -20,8 +20,8 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { WQItem, WQSettings } from '../../models/WQItem';
-import type { WorklistSummary, WorklistDetailView, WorklistTaskView } from '../types';
+import type { WQItem, WQSettings, TestStatus } from '../../models/WQItem';
+import type { WorklistSummary, WorklistDetailView, WorklistTaskView, TestPlanSummary, TestPlanDetailView, TestItemView } from '../types';
 import { postToExtension } from '../hooks/useExtensionState';
 import DependencyChainPreview from './DependencyChainPreview';
 
@@ -29,13 +29,15 @@ interface Props {
   item: WQItem;
   allItems: WQItem[];
   worklists: WorklistSummary[];
+  testPlans: TestPlanSummary[];
   settings: WQSettings;
   worklistDetail: WorklistDetailView | null;
+  testPlanDetail: TestPlanDetailView | null;
   onClose: () => void;
   onNavigateToItem: (item: WQItem | { id: string }) => void;
 }
 
-type DetailTab = 'details' | 'dependencies' | 'worklist';
+type DetailTab = 'details' | 'dependencies' | 'worklist' | 'testing';
 
 /** Icon prefix for system-required status transitions. */
 function transitionLabel(statusId: string, settings: WQSettings): string {
@@ -246,19 +248,254 @@ function WorklistTabContent({ detail, itemId }: { detail: WorklistDetailView; it
   );
 }
 
+// ─── Sortable Test Row ───────────────────────────────────────────────────────
+
+const STATUS_CYCLE: TestStatus[] = ['pending', 'pass', 'fail'];
+
+function statusIcon(status: TestStatus): string {
+  switch (status) {
+    case 'pass': return '\u2713';   // ✓
+    case 'fail': return '\u2717';   // ✗
+    default: return '\u25CB';       // ○
+  }
+}
+
+function SortableTestRow({ test, onUpdate, onDelete, onCreateBug }: {
+  test: TestItemView;
+  onUpdate: (id: string, patch: Partial<TestItemView>) => void;
+  onDelete: (id: string) => void;
+  onCreateBug: (testText: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: test.id });
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(test.text);
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : 'auto',
+  };
+
+  const commitEdit = () => {
+    setEditing(false);
+    const trimmed = editText.trim();
+    if (trimmed && trimmed !== test.text) {
+      onUpdate(test.id, { text: trimmed });
+    } else {
+      setEditText(test.text);
+    }
+  };
+
+  const cycleStatus = () => {
+    const idx = STATUS_CYCLE.indexOf(test.status);
+    const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+    onUpdate(test.id, { status: next });
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`testplan-task-row ${test.status === 'fail' ? 'fail' : ''}`}>
+      <button className="settings-drag-handle" {...attributes} {...listeners} title="Drag to reorder">
+        {'\u2630'}
+      </button>
+      <button
+        className={`testplan-status testplan-status-${test.status}`}
+        onClick={cycleStatus}
+        title={`${test.status} — click to cycle`}
+      >
+        {statusIcon(test.status)}
+      </button>
+      {editing ? (
+        <input
+          className="worklist-task-text"
+          value={editText}
+          onChange={e => setEditText(e.target.value)}
+          onBlur={commitEdit}
+          onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') { setEditing(false); setEditText(test.text); } }}
+          autoFocus
+        />
+      ) : (
+        <span
+          className={`worklist-task-text ${test.status === 'pass' ? 'testplan-text-pass' : ''}`}
+          onClick={() => { setEditing(true); setEditText(test.text); }}
+          title="Click to edit"
+        >
+          {test.text}
+        </span>
+      )}
+      {test.status === 'fail' && (
+        <button
+          className="testplan-bug-btn"
+          onClick={() => onCreateBug(test.text)}
+          title="File bug to worklist"
+        >
+          {'\uD83D\uDC1B'}
+        </button>
+      )}
+      <button
+        className="settings-delete-btn"
+        onClick={() => onDelete(test.id)}
+        title="Remove test"
+      >
+        {'\u2715'}
+      </button>
+    </div>
+  );
+}
+
+// ─── Testing Tab Content ─────────────────────────────────────────────────────
+
+function TestingTabContent({ detail, itemId }: { detail: TestPlanDetailView; itemId: string }) {
+  const [sections, setSections] = useState(detail.sections);
+
+  useEffect(() => {
+    setSections(detail.sections);
+  }, [detail]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const save = useCallback((updated: typeof sections) => {
+    setSections(updated);
+    postToExtension({ type: 'saveTestPlanTests', data: { wqId: itemId, sections: updated } });
+  }, [itemId]);
+
+  const handleDragEnd = (sectionIdx: number) => (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const sec = sections[sectionIdx];
+    const oldIndex = sec.tests.findIndex(t => t.id === active.id);
+    const newIndex = sec.tests.findIndex(t => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const updated = sections.map((s, i) =>
+      i === sectionIdx ? { ...s, tests: arrayMove(s.tests, oldIndex, newIndex) } : s
+    );
+    save(updated);
+  };
+
+  const handleUpdateTest = (sectionIdx: number) => (testId: string, patch: Partial<TestItemView>) => {
+    const updated = sections.map((s, i) => {
+      if (i !== sectionIdx) return s;
+      return {
+        ...s,
+        tests: s.tests.map(t => t.id === testId ? { ...t, ...patch } : t),
+      };
+    });
+    save(updated);
+  };
+
+  const handleDeleteTest = (sectionIdx: number) => (testId: string) => {
+    const updated = sections.map((s, i) => {
+      if (i !== sectionIdx) return s;
+      return { ...s, tests: s.tests.filter(t => t.id !== testId) };
+    });
+    save(updated);
+  };
+
+  const handleAddTest = (sectionIdx: number) => (text: string) => {
+    const sec = sections[sectionIdx];
+    const maxId = sections.flatMap(s => s.tests).reduce((max, t) => {
+      const num = parseInt(t.id.replace('test-', ''), 10);
+      return num > max ? num : max;
+    }, -1);
+    const newTest: TestItemView = {
+      id: `test-${maxId + 1}`,
+      text,
+      status: 'pending',
+      section: sec.heading,
+    };
+    const updated = sections.map((s, i) =>
+      i === sectionIdx ? { ...s, tests: [...s.tests, newTest] } : s
+    );
+    save(updated);
+  };
+
+  const handleCreateBug = (testText: string) => {
+    postToExtension({ type: 'createBugFromTest', data: { wqId: itemId, testText } });
+  };
+
+  // Compute summary counts
+  const allTests = sections.flatMap(s => s.tests);
+  const passCount = allTests.filter(t => t.status === 'pass').length;
+  const failCount = allTests.filter(t => t.status === 'fail').length;
+  const pendingCount = allTests.filter(t => t.status === 'pending').length;
+  const total = allTests.length;
+
+  return (
+    <div className="testplan-tab-content">
+      {/* Summary bar */}
+      {total > 0 && (
+        <div className="testplan-summary">
+          <span className="testplan-summary-pass">{passCount} pass</span>
+          <span className="testplan-summary-fail">{failCount} fail</span>
+          <span className="testplan-summary-pending">{pendingCount} pending</span>
+          <div className="testplan-progress-bar">
+            {passCount > 0 && (
+              <div className="testplan-progress-pass" style={{ width: `${(passCount / total) * 100}%` }} />
+            )}
+            {failCount > 0 && (
+              <div className="testplan-progress-fail" style={{ width: `${(failCount / total) * 100}%` }} />
+            )}
+            {pendingCount > 0 && (
+              <div className="testplan-progress-pending" style={{ width: `${(pendingCount / total) * 100}%` }} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {sections.map((sec, sIdx) => (
+        <div key={sec.heading} className="worklist-section">
+          <div className="worklist-section-header">
+            <span className="worklist-section-title">{sec.heading}</span>
+            <span className="worklist-section-count">
+              {sec.tests.filter(t => t.status === 'pass').length}/{sec.tests.length}
+            </span>
+          </div>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(sIdx)}>
+            <SortableContext items={sec.tests.map(t => t.id)} strategy={verticalListSortingStrategy}>
+              {sec.tests.map(test => (
+                <SortableTestRow
+                  key={test.id}
+                  test={test}
+                  onUpdate={handleUpdateTest(sIdx)}
+                  onDelete={handleDeleteTest(sIdx)}
+                  onCreateBug={handleCreateBug}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+          <AddTaskInput onAdd={handleAddTest(sIdx)} />
+        </div>
+      ))}
+      {sections.length === 0 && (
+        <div style={{ padding: 16, color: 'var(--vscode-descriptionForeground)', fontSize: 12 }}>
+          No test items found in this test plan file.
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function DetailPanel({ item, allItems, worklists, settings, worklistDetail, onClose, onNavigateToItem }: Props) {
+export default function DetailPanel({ item, allItems, worklists, testPlans, settings, worklistDetail, testPlanDetail, onClose, onNavigateToItem }: Props) {
   const [activeTab, setActiveTab] = useState<DetailTab>('details');
 
   const worklist = worklists.find(w => w.wqId.toUpperCase() === item.id.toUpperCase());
   const hasWorklist = !!worklist;
+  const testPlan = testPlans.find(t => t.wqId.toUpperCase() === item.id.toUpperCase());
+  const hasTestPlan = !!testPlan;
   const transitions = settings.transitions[item.status] || [];
 
   // Request worklist detail when switching to worklist tab
   useEffect(() => {
     if (activeTab === 'worklist') {
       postToExtension({ type: 'requestWorklistDetail', data: { wqId: item.id } });
+    }
+    if (activeTab === 'testing') {
+      postToExtension({ type: 'requestTestPlanDetail', data: { wqId: item.id } });
     }
   }, [activeTab, item.id]);
 
@@ -327,6 +564,17 @@ export default function DetailPanel({ item, allItems, worklists, settings, workl
               onClick={() => setActiveTab('worklist')}
             >
               worklist
+            </button>
+          )}
+          {hasTestPlan && (
+            <button
+              className={`detail-tab ${activeTab === 'testing' ? 'active' : ''}`}
+              onClick={() => setActiveTab('testing')}
+            >
+              testing
+              {testPlan && testPlan.fail > 0 && (
+                <span className="testplan-fail-badge">{testPlan.fail}</span>
+              )}
             </button>
           )}
         </div>
@@ -413,7 +661,7 @@ export default function DetailPanel({ item, allItems, worklists, settings, workl
                     <div
                       key={i}
                       style={{ fontSize: 12, color: 'var(--vscode-textLink-foreground)', cursor: 'pointer', marginTop: 2 }}
-                      onClick={() => postToExtension({ type: 'openSpec', data: { itemId: item.id } })}
+                      onClick={() => postToExtension({ type: 'openSpec', data: { itemId: item.id, docIndex: i } })}
                     >
                       {doc.type}: {doc.path.split('/').pop()}
                     </div>
@@ -444,6 +692,31 @@ export default function DetailPanel({ item, allItems, worklists, settings, workl
                 </div>
               )}
 
+              {/* Test plan progress — clickable link to switch to testing tab */}
+              {testPlan && testPlan.total > 0 && (
+                <div className="detail-field">
+                  <span className="detail-label">Test Progress</span>
+                  <div className="testplan-progress-bar" style={{ marginTop: 4 }}>
+                    {testPlan.pass > 0 && (
+                      <div className="testplan-progress-pass" style={{ width: `${(testPlan.pass / testPlan.total) * 100}%` }} />
+                    )}
+                    {testPlan.fail > 0 && (
+                      <div className="testplan-progress-fail" style={{ width: `${(testPlan.fail / testPlan.total) * 100}%` }} />
+                    )}
+                    {testPlan.pending > 0 && (
+                      <div className="testplan-progress-pending" style={{ width: `${(testPlan.pending / testPlan.total) * 100}%` }} />
+                    )}
+                  </div>
+                  <div
+                    style={{ fontSize: 11, color: 'var(--vscode-textLink-foreground)', marginTop: 2, cursor: 'pointer' }}
+                    onClick={() => setActiveTab('testing')}
+                    title="View test plan"
+                  >
+                    {testPlan.pass} pass / {testPlan.fail} fail / {testPlan.pending} pending — View tests
+                  </div>
+                </div>
+              )}
+
               {/* Timestamps */}
               <div className="detail-meta">
                 <div>Created: {new Date(item.createdAt).toLocaleString()}</div>
@@ -464,6 +737,12 @@ export default function DetailPanel({ item, allItems, worklists, settings, workl
             worklistDetail && worklistDetail.wqId.toUpperCase() === item.id.toUpperCase()
               ? <WorklistTabContent detail={worklistDetail} itemId={item.id} />
               : <div style={{ padding: 16, color: 'var(--vscode-descriptionForeground)', fontSize: 12 }}>Loading worklist...</div>
+          )}
+
+          {activeTab === 'testing' && (
+            testPlanDetail && testPlanDetail.wqId.toUpperCase() === item.id.toUpperCase()
+              ? <TestingTabContent detail={testPlanDetail} itemId={item.id} />
+              : <div style={{ padding: 16, color: 'var(--vscode-descriptionForeground)', fontSize: 12 }}>Loading test plan...</div>
           )}
         </div>
 

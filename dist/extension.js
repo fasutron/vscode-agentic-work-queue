@@ -233,6 +233,135 @@ function serializeWorklist(parsed) {
   return lines.join("\n");
 }
 
+// src/models/TestPlanParser.ts
+var PASS_REGEX = /^-\s*\[x\]/i;
+var FAIL_REGEX = /^-\s*\[!\]/;
+var PENDING_REGEX = /^-\s*\[\s\]/;
+function parseTestPlanProgress(content) {
+  const lines = content.split("\n");
+  let pass = 0;
+  let fail = 0;
+  let pending = 0;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (PASS_REGEX.test(trimmed)) {
+      pass++;
+    } else if (FAIL_REGEX.test(trimmed)) {
+      fail++;
+    } else if (PENDING_REGEX.test(trimmed)) {
+      pending++;
+    }
+  }
+  return { pass, fail, pending, total: pass + fail + pending };
+}
+function extractWqIdsFromTestPlan(content, filename) {
+  const ids = /* @__PURE__ */ new Set();
+  const filenameMatch = filename.match(WORKLIST_ID_FILENAME_REGEX);
+  if (filenameMatch) {
+    ids.add(`WQ-${filenameMatch[1]}`);
+  }
+  const headerMatch = content.match(WORKLIST_HEADER_REGEX);
+  if (headerMatch) {
+    const headerValue = headerMatch[1];
+    const idRegex = new RegExp(WQ_ID_EXTRACT_REGEX.source, "g");
+    let idMatch;
+    while ((idMatch = idRegex.exec(headerValue)) !== null) {
+      ids.add(`WQ-${idMatch[1]}`);
+    }
+  }
+  return Array.from(ids);
+}
+function parseChecklistLine(trimmed) {
+  if (PASS_REGEX.test(trimmed)) {
+    return { status: "pass", text: trimmed.replace(/^-\s*\[x\]\s*/i, "") };
+  }
+  if (FAIL_REGEX.test(trimmed)) {
+    return { status: "fail", text: trimmed.replace(/^-\s*\[!\]\s*/, "") };
+  }
+  if (PENDING_REGEX.test(trimmed)) {
+    return { status: "pending", text: trimmed.replace(/^-\s*\[\s\]\s*/, "") };
+  }
+  return null;
+}
+function parseTestPlanFull(content, filename) {
+  const lines = content.split("\n");
+  const wqIds = extractWqIdsFromTestPlan(content, filename);
+  let title = "";
+  let rawPreamble = "";
+  const sections = [];
+  let phase = "before-h1";
+  let currentSection = null;
+  const preambleLines = [];
+  let testCounter = 0;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (phase === "before-h1" && /^#\s+/.test(trimmed)) {
+      title = trimmed.replace(/^#\s+/, "");
+      phase = "preamble";
+      continue;
+    }
+    if (/^##\s+/.test(trimmed)) {
+      if (currentSection) {
+        sections.push(currentSection);
+      }
+      const heading = trimmed.replace(/^##\s+/, "");
+      currentSection = { heading, items: [] };
+      phase = "section";
+      continue;
+    }
+    if (phase === "preamble") {
+      preambleLines.push(line);
+      continue;
+    }
+    if (phase === "section" && currentSection) {
+      const parsed = parseChecklistLine(trimmed);
+      if (parsed) {
+        const test = {
+          id: `test-${testCounter++}`,
+          text: parsed.text,
+          status: parsed.status,
+          section: currentSection.heading
+        };
+        currentSection.items.push(test);
+      } else {
+        const raw = { type: "raw", text: line };
+        currentSection.items.push(raw);
+      }
+    }
+  }
+  if (currentSection) {
+    sections.push(currentSection);
+  }
+  while (preambleLines.length > 0 && preambleLines[preambleLines.length - 1].trim() === "") {
+    preambleLines.pop();
+  }
+  rawPreamble = preambleLines.join("\n");
+  return { title, wqIds, rawPreamble, sections };
+}
+function serializeTestPlan(parsed) {
+  const lines = [];
+  lines.push(`# ${parsed.title}`);
+  lines.push("");
+  if (parsed.rawPreamble) {
+    lines.push(parsed.rawPreamble);
+    lines.push("");
+  }
+  for (const section of parsed.sections) {
+    lines.push(`## ${section.heading}`);
+    for (const item of section.items) {
+      if ("type" in item && item.type === "raw") {
+        lines.push(item.text);
+      } else {
+        const test = item;
+        const marker = test.status === "pass" ? "- [x]" : test.status === "fail" ? "- [!]" : "- [ ]";
+        lines.push(`${marker} ${test.text}`);
+      }
+    }
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
 // src/services/WQDataService.ts
 var WQDataService = class {
   handoffsDir;
@@ -242,6 +371,10 @@ var WQDataService = class {
   worklistByWqId = /* @__PURE__ */ new Map();
   /** Maps absolute file path → worklist mapping */
   worklistByPath = /* @__PURE__ */ new Map();
+  /** Maps WQ ID → test plan mappings */
+  testPlanByWqId = /* @__PURE__ */ new Map();
+  /** Maps absolute file path → test plan mapping */
+  testPlanByPath = /* @__PURE__ */ new Map();
   constructor(handoffsDir) {
     this.handoffsDir = handoffsDir;
     this.reload();
@@ -252,6 +385,7 @@ var WQDataService = class {
   reload() {
     this.loadItems();
     this.loadWorklists();
+    this.loadTestPlans();
   }
   getItems() {
     return this.items;
@@ -382,6 +516,59 @@ var WQDataService = class {
   getWorklistItemIds() {
     return Array.from(this.worklistByWqId.keys());
   }
+  // --- Test plan public methods ---
+  /**
+   * Get the primary test plan mapping for a WQ item (first match).
+   */
+  getTestPlanForItem(id) {
+    const mappings = this.testPlanByWqId.get(id.toUpperCase());
+    return mappings?.[0];
+  }
+  /**
+   * Get the absolute path to the test plan file for a WQ item.
+   */
+  resolveTestPlanPath(itemId) {
+    return this.getTestPlanForItem(itemId)?.filePath;
+  }
+  /**
+   * Get the full parsed test plan for a WQ item.
+   */
+  getTestPlanDetail(itemId) {
+    const mapping = this.getTestPlanForItem(itemId);
+    if (!mapping) {
+      return void 0;
+    }
+    try {
+      const content = fs.readFileSync(mapping.filePath, "utf-8");
+      const filename = path.basename(mapping.filePath);
+      return parseTestPlanFull(content, filename);
+    } catch {
+      return void 0;
+    }
+  }
+  /**
+   * Save an updated ParsedTestPlan back to disk.
+   */
+  saveTestPlanDetail(itemId, parsed) {
+    const mapping = this.getTestPlanForItem(itemId);
+    if (!mapping) {
+      return false;
+    }
+    try {
+      const markdown = serializeTestPlan(parsed);
+      fs.writeFileSync(mapping.filePath, markdown, "utf-8");
+      return true;
+    } catch (e) {
+      console.error("Failed to save test plan:", e);
+      return false;
+    }
+  }
+  /**
+   * Get WQ item IDs that have associated test plan files.
+   */
+  getTestPlanItemIds() {
+    return Array.from(this.testPlanByWqId.keys());
+  }
   // --- Private methods ---
   loadItems() {
     const wqPath = path.join(this.handoffsDir, "work_queue.json");
@@ -426,10 +613,57 @@ var WQDataService = class {
    */
   discoverWorklistFiles() {
     const results = [];
-    this.walkDir(this.handoffsDir, results);
+    const matcher = (name) => name.includes("WORKLIST") && name.endsWith(".md");
+    this.walkDir(this.handoffsDir, results, matcher);
     return results;
   }
-  walkDir(dir, results) {
+  /**
+   * Recursively discover all test plan files under the handoffs directory.
+   * Matches: *TEST_PLAN*, *TESTING_CHECKLIST*, *SMOKE_TEST*, *_Tests.md
+   * (case-insensitive). Excludes worklist, results, and prompt files.
+   */
+  discoverTestPlanFiles() {
+    const results = [];
+    const matcher = (name) => {
+      const upper = name.toUpperCase();
+      if (!upper.endsWith(".MD"))
+        return false;
+      if (upper.includes("WORKLIST"))
+        return false;
+      if (upper.includes("_RESULT") || upper.includes("_PROMPT") || upper.includes("_VECTOR"))
+        return false;
+      return upper.includes("TEST_PLAN") || upper.includes("TESTING_CHECKLIST") || upper.includes("SMOKE_TEST") || upper.includes("_TESTS.");
+    };
+    this.walkDir(this.handoffsDir, results, matcher);
+    return results;
+  }
+  loadTestPlans() {
+    this.testPlanByWqId.clear();
+    this.testPlanByPath.clear();
+    const testPlanFiles = this.discoverTestPlanFiles();
+    for (const filePath of testPlanFiles) {
+      try {
+        const content = fs.readFileSync(filePath, "utf-8");
+        const filename = path.basename(filePath);
+        const progress = parseTestPlanProgress(content);
+        const wqIds = extractWqIdsFromTestPlan(content, filename);
+        const mapping = {
+          filePath,
+          wqIds,
+          progress
+        };
+        this.testPlanByPath.set(filePath, mapping);
+        for (const id of wqIds) {
+          const key = id.toUpperCase();
+          const existing = this.testPlanByWqId.get(key) || [];
+          existing.push(mapping);
+          this.testPlanByWqId.set(key, existing);
+        }
+      } catch {
+      }
+    }
+  }
+  walkDir(dir, results, matcher) {
     let entries;
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -439,8 +673,8 @@ var WQDataService = class {
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        this.walkDir(fullPath, results);
-      } else if (entry.isFile() && entry.name.includes("WORKLIST") && entry.name.endsWith(".md")) {
+        this.walkDir(fullPath, results, matcher);
+      } else if (entry.isFile() && matcher(entry.name)) {
         results.push(fullPath);
       }
     }
@@ -892,7 +1126,15 @@ var WQFileWatcher = class {
     wlWatcher.onDidChange(() => this.debouncedRefresh());
     wlWatcher.onDidCreate(() => this.debouncedRefresh());
     wlWatcher.onDidDelete(() => this.debouncedRefresh());
-    this.watchers = [wqWatcher, wlWatcher];
+    const tpPattern = new vscode5.RelativePattern(
+      workspaceRoot,
+      "documents/handoffs/**/*TEST*.md"
+    );
+    const tpWatcher = vscode5.workspace.createFileSystemWatcher(tpPattern);
+    tpWatcher.onDidChange(() => this.debouncedRefresh());
+    tpWatcher.onDidCreate(() => this.debouncedRefresh());
+    tpWatcher.onDidDelete(() => this.debouncedRefresh());
+    this.watchers = [wqWatcher, wlWatcher, tpWatcher];
   }
   debouncedRefresh() {
     if (this.debounceTimer) {
@@ -982,14 +1224,16 @@ var WQWebviewProvider = class {
       case "openSpec": {
         const item = this.dataService.getItemById(msg.data.itemId);
         if (item && item.documents.length > 0) {
-          const resolved = this.dataService.resolveDocumentPath(item.documents[0]);
+          const docIdx = msg.data.docIndex ?? 0;
+          const targetDoc = item.documents[docIdx] ?? item.documents[0];
+          const resolved = this.dataService.resolveDocumentPath(targetDoc);
           if (resolved) {
             vscode6.workspace.openTextDocument(resolved).then(
               (doc) => vscode6.window.showTextDocument(doc, vscode6.ViewColumn.Beside),
-              () => vscode6.window.showErrorMessage(`Could not open: ${item.documents[0].path}`)
+              () => vscode6.window.showErrorMessage(`Could not open: ${targetDoc.path}`)
             );
           } else {
-            vscode6.window.showErrorMessage(`File not found: ${item.documents[0].path}`);
+            vscode6.window.showErrorMessage(`File not found: ${targetDoc.path}`);
           }
         } else {
           vscode6.window.showInformationMessage(`No documents linked to ${msg.data.itemId}.`);
@@ -1075,6 +1319,63 @@ var WQWebviewProvider = class {
         }
         break;
       }
+      case "requestTestPlanDetail": {
+        const tpDetail = this.buildTestPlanDetail(msg.data.wqId);
+        this.postMessage({ type: "testPlanDetail", data: tpDetail });
+        break;
+      }
+      case "saveTestPlanTests": {
+        const { wqId, sections: tpSections } = msg.data;
+        const tpParsed = this.dataService.getTestPlanDetail(wqId);
+        if (tpParsed) {
+          for (const incoming of tpSections) {
+            const target = tpParsed.sections.find((s) => s.heading === incoming.heading);
+            if (!target) {
+              continue;
+            }
+            const rawLines = target.items.filter((i) => "type" in i && i.type === "raw");
+            const newItems = incoming.tests.map((t) => ({
+              id: t.id,
+              text: t.text,
+              status: t.status,
+              section: incoming.heading
+            }));
+            target.items = [...newItems, ...rawLines];
+          }
+          const success = this.dataService.saveTestPlanDetail(wqId, tpParsed);
+          if (success) {
+            this.postMessage({ type: "toast", data: { message: "Test plan saved" } });
+            setTimeout(() => this.pushDataUpdate(), 300);
+          }
+        }
+        break;
+      }
+      case "createBugFromTest": {
+        const { wqId, testText } = msg.data;
+        const wlParsed = this.dataService.getWorklistDetail(wqId);
+        if (!wlParsed) {
+          this.postMessage({ type: "toast", data: { message: `No worklist found for ${wqId} \u2014 create one first.` } });
+          break;
+        }
+        let bugsSection = wlParsed.sections.find((s) => s.heading === "Bugs from Testing");
+        if (!bugsSection) {
+          bugsSection = { heading: "Bugs from Testing", items: [] };
+          wlParsed.sections.push(bugsSection);
+        }
+        const nextId = `task-${Date.now()}`;
+        bugsSection.items.push({
+          id: nextId,
+          text: `[TEST FAIL] ${testText}`,
+          checked: false,
+          section: "Bugs from Testing"
+        });
+        const bugSaved = this.dataService.saveWorklistDetail(wqId, wlParsed);
+        if (bugSaved) {
+          this.postMessage({ type: "toast", data: { message: `Bug filed to worklist: ${testText}` } });
+          setTimeout(() => this.pushDataUpdate(), 300);
+        }
+        break;
+      }
       case "showNotification": {
         const { message, kind } = msg.data;
         if (kind === "error") {
@@ -1092,18 +1393,29 @@ var WQWebviewProvider = class {
     const items = this.dataService.getItems();
     const settings = this.dataService.getSettings();
     const worklists = [];
+    const testPlans = [];
     for (const item of items) {
-      const mapping = this.dataService.getWorklistForItem(item.id);
-      if (mapping && mapping.progress.total > 0) {
+      const wlMapping = this.dataService.getWorklistForItem(item.id);
+      if (wlMapping && wlMapping.progress.total > 0) {
         worklists.push({
           wqId: item.id,
-          completed: mapping.progress.completed,
-          pending: mapping.progress.pending,
-          total: mapping.progress.total
+          completed: wlMapping.progress.completed,
+          pending: wlMapping.progress.pending,
+          total: wlMapping.progress.total
+        });
+      }
+      const tpMapping = this.dataService.getTestPlanForItem(item.id);
+      if (tpMapping && tpMapping.progress.total > 0) {
+        testPlans.push({
+          wqId: item.id,
+          pass: tpMapping.progress.pass,
+          fail: tpMapping.progress.fail,
+          pending: tpMapping.progress.pending,
+          total: tpMapping.progress.total
         });
       }
     }
-    return { items, worklists, settings };
+    return { items, worklists, settings, testPlans };
   }
   /** Convert a ParsedWorklist to a webview-safe WorklistDetailView. */
   buildWorklistDetail(wqId) {
@@ -1128,6 +1440,33 @@ var WQWebviewProvider = class {
       }
       if (tasks.length > 0) {
         sections.push({ heading: section.heading, tasks });
+      }
+    }
+    return { wqId, title: parsed.title, sections };
+  }
+  /** Convert a ParsedTestPlan to a webview-safe TestPlanDetailView. */
+  buildTestPlanDetail(wqId) {
+    const parsed = this.dataService.getTestPlanDetail(wqId);
+    if (!parsed) {
+      return null;
+    }
+    const sections = [];
+    for (const section of parsed.sections) {
+      const tests = [];
+      for (const item of section.items) {
+        if ("type" in item && item.type === "raw") {
+          continue;
+        }
+        const test = item;
+        tests.push({
+          id: test.id,
+          text: test.text,
+          status: test.status,
+          section: section.heading
+        });
+      }
+      if (tests.length > 0) {
+        sections.push({ heading: section.heading, tests });
       }
     }
     return { wqId, title: parsed.title, sections };

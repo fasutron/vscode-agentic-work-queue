@@ -47,7 +47,7 @@ export interface ListFilter {
 }
 
 export default function App() {
-  const { items, worklists, settings, worklistDetail, loading, toast } = useExtensionState();
+  const { items, worklists, testPlans, settings, worklistDetail, testPlanDetail, loading, toast } = useExtensionState();
   const [activeTab, setActiveTab] = useState<ViewTab>('dashboard');
   const [selectedItem, setSelectedItem] = useState<WQItem | null>(null);
   const [presetFilter, setPresetFilter] = useState<ListFilter>({});
@@ -158,8 +158,10 @@ export default function App() {
             item={selected}
             allItems={items}
             worklists={worklists}
+            testPlans={testPlans}
             settings={settings}
             worklistDetail={worklistDetail}
+            testPlanDetail={testPlanDetail}
             onClose={handleCloseDetail}
             onNavigateToItem={handleSelectItem}
           />

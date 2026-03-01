@@ -687,6 +687,139 @@ input.worklist-task-text {
   background: var(--vscode-input-background);
 }
 
+/* --- Test Plan Styles --- */
+
+.testplan-tab-content {
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+.testplan-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.testplan-summary-pass {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-testing-iconPassed, #73c991);
+}
+.testplan-summary-fail {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-testing-iconFailed, #f14c4c);
+}
+.testplan-summary-pending {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground);
+}
+
+.testplan-progress-bar {
+  display: flex;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--vscode-progressBar-background, #333);
+}
+.testplan-progress-pass {
+  background: var(--vscode-testing-iconPassed, #73c991);
+  height: 100%;
+}
+.testplan-progress-fail {
+  background: var(--vscode-testing-iconFailed, #f14c4c);
+  height: 100%;
+}
+.testplan-progress-pending {
+  background: var(--vscode-descriptionForeground);
+  opacity: 0.3;
+  height: 100%;
+}
+
+.testplan-task-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--vscode-editorWidget-background);
+  border: 1px solid var(--vscode-panel-border);
+  margin-bottom: 4px;
+}
+.testplan-task-row:hover {
+  border-color: var(--vscode-focusBorder);
+}
+.testplan-task-row.fail {
+  border-left: 3px solid var(--vscode-testing-iconFailed, #f14c4c);
+}
+
+.testplan-status {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--vscode-panel-border);
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+.testplan-status-pending {
+  color: var(--vscode-descriptionForeground);
+}
+.testplan-status-pass {
+  color: var(--vscode-testing-iconPassed, #73c991);
+  border-color: var(--vscode-testing-iconPassed, #73c991);
+}
+.testplan-status-fail {
+  color: var(--vscode-testing-iconFailed, #f14c4c);
+  border-color: var(--vscode-testing-iconFailed, #f14c4c);
+}
+
+.testplan-text-pass {
+  color: var(--vscode-descriptionForeground) !important;
+}
+
+.testplan-bug-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.testplan-task-row:hover .testplan-bug-btn {
+  opacity: 1;
+}
+.testplan-bug-btn:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.testplan-fail-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--vscode-testing-iconFailed, #f14c4c);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0 4px;
+  margin-left: 4px;
+}
+
 /* --- Scrollbar --- */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }

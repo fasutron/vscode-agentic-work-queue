@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { WQItem, WQSettings } from '../../models/WQItem';
 import { DEFAULT_SETTINGS } from '../../models/defaultSettings';
-import type { ExtensionToWebviewMessage, WebviewToExtensionMessage, WorklistSummary, WorklistDetailView } from '../types';
+import type { ExtensionToWebviewMessage, WebviewToExtensionMessage, WorklistSummary, WorklistDetailView, TestPlanSummary, TestPlanDetailView } from '../types';
 
 // acquireVsCodeApi can only be called once per webview lifecycle.
 const vscode = (globalThis as any).acquireVsCodeApi();
@@ -15,8 +15,10 @@ export function postToExtension(msg: WebviewToExtensionMessage): void {
 export interface ExtensionState {
   items: WQItem[];
   worklists: WorklistSummary[];
+  testPlans: TestPlanSummary[];
   settings: WQSettings;
   worklistDetail: WorklistDetailView | null;
+  testPlanDetail: TestPlanDetailView | null;
   loading: boolean;
   toast: string | null;
 }
@@ -24,8 +26,10 @@ export interface ExtensionState {
 export function useExtensionState(): ExtensionState {
   const [items, setItems] = useState<WQItem[]>([]);
   const [worklists, setWorklists] = useState<WorklistSummary[]>([]);
+  const [testPlans, setTestPlans] = useState<TestPlanSummary[]>([]);
   const [settings, setSettings] = useState<WQSettings>(DEFAULT_SETTINGS);
   const [worklistDetail, setWorklistDetail] = useState<WorklistDetailView | null>(null);
+  const [testPlanDetail, setTestPlanDetail] = useState<TestPlanDetailView | null>(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -41,6 +45,7 @@ export function useExtensionState(): ExtensionState {
             if (msg.data?.items) {
               setItems(msg.data.items);
               setWorklists(msg.data.worklists ?? []);
+              setTestPlans(msg.data.testPlans ?? []);
               if (msg.data.settings) { setSettings(msg.data.settings); }
               setLoading(false);
             }
@@ -53,6 +58,9 @@ export function useExtensionState(): ExtensionState {
             break;
           case 'worklistDetail':
             setWorklistDetail(msg.data ?? null);
+            break;
+          case 'testPlanDetail':
+            setTestPlanDetail(msg.data ?? null);
             break;
           case 'statusChangeResult':
             // Handled silently — data refresh comes via dataUpdate
@@ -70,7 +78,7 @@ export function useExtensionState(): ExtensionState {
     return () => window.removeEventListener('message', handler);
   }, []);
 
-  return { items, worklists, settings, worklistDetail, loading, toast };
+  return { items, worklists, testPlans, settings, worklistDetail, testPlanDetail, loading, toast };
 }
 
 /** Get worklist progress for a specific WQ item. */

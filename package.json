@@ -2,7 +2,7 @@
   "name": "purr-wq-viewer",
   "displayName": "PURR Work Queue",
   "description": "Work Queue sidebar for PURR/Stratagem project management",
-  "version": "0.9.0",
+  "version": "0.10.3",
   "publisher": "purr-lms",
   "engines": {
     "vscode": "^1.85.0"

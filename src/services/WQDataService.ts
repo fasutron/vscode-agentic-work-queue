@@ -1,12 +1,13 @@
-// Central data service: loads work_queue.json, discovers/parses WORKLIST files,
-// and maintains the mapping between WQ items and their WORKLIST progress.
+// Central data service: loads work_queue.json, discovers/parses WORKLIST and
+// TEST_PLAN files, and maintains the mapping between WQ items and their documents.
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { WQItem, WQFile, WQDocument, WorklistMapping, WQStatus, WQPhase, WQTrack, WQSettings } from '../models/WQItem';
+import type { WQItem, WQFile, WQDocument, WorklistMapping, TestPlanMapping, WQStatus, WQPhase, WQTrack, WQSettings } from '../models/WQItem';
+import type { ParsedWorklist, ParsedTestPlan } from '../models/WQItem';
 import { DEFAULT_SETTINGS } from '../models/defaultSettings';
 import { parseWorklistProgress, extractWqIdsFromWorklist, parseWorklistFull, serializeWorklist } from '../models/WorklistParser';
-import type { ParsedWorklist } from '../models/WQItem';
+import { parseTestPlanProgress, extractWqIdsFromTestPlan, parseTestPlanFull, serializeTestPlan } from '../models/TestPlanParser';
 
 export interface FilterOptions {
   status?: WQStatus[];
@@ -25,6 +26,10 @@ export class WQDataService {
   private worklistByWqId: Map<string, WorklistMapping[]> = new Map();
   /** Maps absolute file path → worklist mapping */
   private worklistByPath: Map<string, WorklistMapping> = new Map();
+  /** Maps WQ ID → test plan mappings */
+  private testPlanByWqId: Map<string, TestPlanMapping[]> = new Map();
+  /** Maps absolute file path → test plan mapping */
+  private testPlanByPath: Map<string, TestPlanMapping> = new Map();
 
   constructor(handoffsDir: string) {
     this.handoffsDir = handoffsDir;
@@ -37,6 +42,7 @@ export class WQDataService {
   reload(): void {
     this.loadItems();
     this.loadWorklists();
+    this.loadTestPlans();
   }
 
   getItems(): WQItem[] {
@@ -176,6 +182,61 @@ export class WQDataService {
     return Array.from(this.worklistByWqId.keys());
   }
 
+  // --- Test plan public methods ---
+
+  /**
+   * Get the primary test plan mapping for a WQ item (first match).
+   */
+  getTestPlanForItem(id: string): TestPlanMapping | undefined {
+    const mappings = this.testPlanByWqId.get(id.toUpperCase());
+    return mappings?.[0];
+  }
+
+  /**
+   * Get the absolute path to the test plan file for a WQ item.
+   */
+  resolveTestPlanPath(itemId: string): string | undefined {
+    return this.getTestPlanForItem(itemId)?.filePath;
+  }
+
+  /**
+   * Get the full parsed test plan for a WQ item.
+   */
+  getTestPlanDetail(itemId: string): ParsedTestPlan | undefined {
+    const mapping = this.getTestPlanForItem(itemId);
+    if (!mapping) { return undefined; }
+    try {
+      const content = fs.readFileSync(mapping.filePath, 'utf-8');
+      const filename = path.basename(mapping.filePath);
+      return parseTestPlanFull(content, filename);
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Save an updated ParsedTestPlan back to disk.
+   */
+  saveTestPlanDetail(itemId: string, parsed: ParsedTestPlan): boolean {
+    const mapping = this.getTestPlanForItem(itemId);
+    if (!mapping) { return false; }
+    try {
+      const markdown = serializeTestPlan(parsed);
+      fs.writeFileSync(mapping.filePath, markdown, 'utf-8');
+      return true;
+    } catch (e) {
+      console.error('Failed to save test plan:', e);
+      return false;
+    }
+  }
+
+  /**
+   * Get WQ item IDs that have associated test plan files.
+   */
+  getTestPlanItemIds(): string[] {
+    return Array.from(this.testPlanByWqId.keys());
+  }
+
   // --- Private methods ---
 
   private loadItems(): void {
@@ -230,11 +291,66 @@ export class WQDataService {
    */
   private discoverWorklistFiles(): string[] {
     const results: string[] = [];
-    this.walkDir(this.handoffsDir, results);
+    const matcher = (name: string) => name.includes('WORKLIST') && name.endsWith('.md');
+    this.walkDir(this.handoffsDir, results, matcher);
     return results;
   }
 
-  private walkDir(dir: string, results: string[]): void {
+  /**
+   * Recursively discover all test plan files under the handoffs directory.
+   * Matches: *TEST_PLAN*, *TESTING_CHECKLIST*, *SMOKE_TEST*, *_Tests.md
+   * (case-insensitive). Excludes worklist, results, and prompt files.
+   */
+  private discoverTestPlanFiles(): string[] {
+    const results: string[] = [];
+    const matcher = (name: string) => {
+      const upper = name.toUpperCase();
+      if (!upper.endsWith('.MD')) return false;
+      if (upper.includes('WORKLIST')) return false;
+      // Exclude test session artifacts (results, prompts, vectors)
+      if (upper.includes('_RESULT') || upper.includes('_PROMPT') || upper.includes('_VECTOR')) return false;
+      return upper.includes('TEST_PLAN') || upper.includes('TESTING_CHECKLIST')
+        || upper.includes('SMOKE_TEST') || upper.includes('_TESTS.');
+    };
+    this.walkDir(this.handoffsDir, results, matcher);
+    return results;
+  }
+
+  private loadTestPlans(): void {
+    this.testPlanByWqId.clear();
+    this.testPlanByPath.clear();
+
+    const testPlanFiles = this.discoverTestPlanFiles();
+
+    for (const filePath of testPlanFiles) {
+      try {
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const filename = path.basename(filePath);
+        const progress = parseTestPlanProgress(content);
+        const wqIds = extractWqIdsFromTestPlan(content, filename);
+
+        const mapping: TestPlanMapping = {
+          filePath,
+          wqIds,
+          progress,
+        };
+
+        this.testPlanByPath.set(filePath, mapping);
+
+        // Index by each referenced WQ ID
+        for (const id of wqIds) {
+          const key = id.toUpperCase();
+          const existing = this.testPlanByWqId.get(key) || [];
+          existing.push(mapping);
+          this.testPlanByWqId.set(key, existing);
+        }
+      } catch {
+        // Skip unreadable test plan files
+      }
+    }
+  }
+
+  private walkDir(dir: string, results: string[], matcher: (name: string) => boolean): void {
     let entries: fs.Dirent[];
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -245,8 +361,8 @@ export class WQDataService {
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        this.walkDir(fullPath, results);
-      } else if (entry.isFile() && entry.name.includes('WORKLIST') && entry.name.endsWith('.md')) {
+        this.walkDir(fullPath, results, matcher);
+      } else if (entry.isFile() && matcher(entry.name)) {
         results.push(fullPath);
       }
     }

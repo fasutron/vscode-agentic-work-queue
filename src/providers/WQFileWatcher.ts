@@ -1,4 +1,4 @@
-// File system watchers for work_queue.json and *WORKLIST*.md files.
+// File system watchers for work_queue.json, *WORKLIST*.md, and *TEST*.md files.
 // Triggers a debounced callback on any change to keep TreeViews in sync.
 
 import * as vscode from 'vscode';
@@ -31,7 +31,17 @@ export class WQFileWatcher implements vscode.Disposable {
     wlWatcher.onDidCreate(() => this.debouncedRefresh());
     wlWatcher.onDidDelete(() => this.debouncedRefresh());
 
-    this.watchers = [wqWatcher, wlWatcher];
+    // Watch all test plan files (create/change/delete)
+    const tpPattern = new vscode.RelativePattern(
+      workspaceRoot,
+      'documents/handoffs/**/*TEST*.md',
+    );
+    const tpWatcher = vscode.workspace.createFileSystemWatcher(tpPattern);
+    tpWatcher.onDidChange(() => this.debouncedRefresh());
+    tpWatcher.onDidCreate(() => this.debouncedRefresh());
+    tpWatcher.onDidDelete(() => this.debouncedRefresh());
+
+    this.watchers = [wqWatcher, wlWatcher, tpWatcher];
   }
 
   private debouncedRefresh(): void {

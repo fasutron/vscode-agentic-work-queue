@@ -6,7 +6,7 @@ import * as crypto from 'crypto';
 import { WQDataService } from '../services/WQDataService';
 import { ClaudeCodeService } from '../services/ClaudeCodeService';
 import type { WQItem, WQSettings } from '../models/WQItem';
-import type { ExtensionToWebviewMessage, WebviewToExtensionMessage, WorklistSummary, WorklistDetailView, WorklistTaskView } from '../webview/types';
+import type { ExtensionToWebviewMessage, WebviewToExtensionMessage, WorklistSummary, WorklistDetailView, WorklistTaskView, TestPlanSummary, TestPlanDetailView, TestItemView } from '../webview/types';
 
 export class WQWebviewProvider implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined;
@@ -89,14 +89,16 @@ export class WQWebviewProvider implements vscode.Disposable {
       case 'openSpec': {
         const item = this.dataService.getItemById(msg.data.itemId);
         if (item && item.documents.length > 0) {
-          const resolved = this.dataService.resolveDocumentPath(item.documents[0]);
+          const docIdx = msg.data.docIndex ?? 0;
+          const targetDoc = item.documents[docIdx] ?? item.documents[0];
+          const resolved = this.dataService.resolveDocumentPath(targetDoc);
           if (resolved) {
             vscode.workspace.openTextDocument(resolved).then(
               doc => vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside),
-              () => vscode.window.showErrorMessage(`Could not open: ${item.documents[0].path}`),
+              () => vscode.window.showErrorMessage(`Could not open: ${targetDoc.path}`),
             );
           } else {
-            vscode.window.showErrorMessage(`File not found: ${item.documents[0].path}`);
+            vscode.window.showErrorMessage(`File not found: ${targetDoc.path}`);
           }
         } else {
           vscode.window.showInformationMessage(`No documents linked to ${msg.data.itemId}.`);
@@ -195,6 +197,66 @@ export class WQWebviewProvider implements vscode.Disposable {
         break;
       }
 
+      case 'requestTestPlanDetail': {
+        const tpDetail = this.buildTestPlanDetail(msg.data.wqId);
+        this.postMessage({ type: 'testPlanDetail', data: tpDetail });
+        break;
+      }
+
+      case 'saveTestPlanTests': {
+        const { wqId, sections: tpSections } = msg.data;
+        const tpParsed = this.dataService.getTestPlanDetail(wqId);
+        if (tpParsed) {
+          // Patch test plan sections with updated tests from webview
+          for (const incoming of tpSections) {
+            const target = tpParsed.sections.find(s => s.heading === incoming.heading);
+            if (!target) { continue; }
+            const rawLines = target.items.filter(i => 'type' in i && i.type === 'raw');
+            const newItems: typeof target.items = incoming.tests.map(t => ({
+              id: t.id,
+              text: t.text,
+              status: t.status,
+              section: incoming.heading,
+            }));
+            target.items = [...newItems, ...rawLines];
+          }
+          const success = this.dataService.saveTestPlanDetail(wqId, tpParsed);
+          if (success) {
+            this.postMessage({ type: 'toast', data: { message: 'Test plan saved' } });
+            setTimeout(() => this.pushDataUpdate(), 300);
+          }
+        }
+        break;
+      }
+
+      case 'createBugFromTest': {
+        const { wqId, testText } = msg.data;
+        const wlParsed = this.dataService.getWorklistDetail(wqId);
+        if (!wlParsed) {
+          this.postMessage({ type: 'toast', data: { message: `No worklist found for ${wqId} — create one first.` } });
+          break;
+        }
+        // Find or create a "Bugs from Testing" section
+        let bugsSection = wlParsed.sections.find(s => s.heading === 'Bugs from Testing');
+        if (!bugsSection) {
+          bugsSection = { heading: 'Bugs from Testing', items: [] };
+          wlParsed.sections.push(bugsSection);
+        }
+        const nextId = `task-${Date.now()}`;
+        bugsSection.items.push({
+          id: nextId,
+          text: `[TEST FAIL] ${testText}`,
+          checked: false,
+          section: 'Bugs from Testing',
+        });
+        const bugSaved = this.dataService.saveWorklistDetail(wqId, wlParsed);
+        if (bugSaved) {
+          this.postMessage({ type: 'toast', data: { message: `Bug filed to worklist: ${testText}` } });
+          setTimeout(() => this.pushDataUpdate(), 300);
+        }
+        break;
+      }
+
       case 'showNotification': {
         const { message, kind } = msg.data;
         if (kind === 'error') { vscode.window.showErrorMessage(message); }
@@ -205,24 +267,36 @@ export class WQWebviewProvider implements vscode.Disposable {
     }
   }
 
-  private buildPayload(): { items: WQItem[]; worklists: WorklistSummary[]; settings: WQSettings } {
+  private buildPayload(): { items: WQItem[]; worklists: WorklistSummary[]; settings: WQSettings; testPlans: TestPlanSummary[] } {
     const items = this.dataService.getItems();
     const settings = this.dataService.getSettings();
     const worklists: WorklistSummary[] = [];
+    const testPlans: TestPlanSummary[] = [];
 
     for (const item of items) {
-      const mapping = this.dataService.getWorklistForItem(item.id);
-      if (mapping && mapping.progress.total > 0) {
+      const wlMapping = this.dataService.getWorklistForItem(item.id);
+      if (wlMapping && wlMapping.progress.total > 0) {
         worklists.push({
           wqId: item.id,
-          completed: mapping.progress.completed,
-          pending: mapping.progress.pending,
-          total: mapping.progress.total,
+          completed: wlMapping.progress.completed,
+          pending: wlMapping.progress.pending,
+          total: wlMapping.progress.total,
+        });
+      }
+
+      const tpMapping = this.dataService.getTestPlanForItem(item.id);
+      if (tpMapping && tpMapping.progress.total > 0) {
+        testPlans.push({
+          wqId: item.id,
+          pass: tpMapping.progress.pass,
+          fail: tpMapping.progress.fail,
+          pending: tpMapping.progress.pending,
+          total: tpMapping.progress.total,
         });
       }
     }
 
-    return { items, worklists, settings };
+    return { items, worklists, settings, testPlans };
   }
 
   /** Convert a ParsedWorklist to a webview-safe WorklistDetailView. */
@@ -246,6 +320,32 @@ export class WQWebviewProvider implements vscode.Disposable {
       }
       if (tasks.length > 0) {
         sections.push({ heading: section.heading, tasks });
+      }
+    }
+
+    return { wqId, title: parsed.title, sections };
+  }
+
+  /** Convert a ParsedTestPlan to a webview-safe TestPlanDetailView. */
+  private buildTestPlanDetail(wqId: string): TestPlanDetailView | null {
+    const parsed = this.dataService.getTestPlanDetail(wqId);
+    if (!parsed) { return null; }
+
+    const sections: TestPlanDetailView['sections'] = [];
+    for (const section of parsed.sections) {
+      const tests: TestItemView[] = [];
+      for (const item of section.items) {
+        if ('type' in item && item.type === 'raw') { continue; }
+        const test = item as import('../models/WQItem').TestItem;
+        tests.push({
+          id: test.id,
+          text: test.text,
+          status: test.status,
+          section: section.heading,
+        });
+      }
+      if (tests.length > 0) {
+        sections.push({ heading: section.heading, tests });
       }
     }
 

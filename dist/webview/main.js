@@ -32355,8 +32355,10 @@
   function useExtensionState() {
     const [items, setItems] = (0, import_react.useState)([]);
     const [worklists, setWorklists] = (0, import_react.useState)([]);
+    const [testPlans, setTestPlans] = (0, import_react.useState)([]);
     const [settings, setSettings] = (0, import_react.useState)(DEFAULT_SETTINGS);
     const [worklistDetail, setWorklistDetail] = (0, import_react.useState)(null);
+    const [testPlanDetail, setTestPlanDetail] = (0, import_react.useState)(null);
     const [loading, setLoading] = (0, import_react.useState)(true);
     const [toast, setToast] = (0, import_react.useState)(null);
     (0, import_react.useEffect)(() => {
@@ -32372,6 +32374,7 @@
               if (msg.data?.items) {
                 setItems(msg.data.items);
                 setWorklists(msg.data.worklists ?? []);
+                setTestPlans(msg.data.testPlans ?? []);
                 if (msg.data.settings) {
                   setSettings(msg.data.settings);
                 }
@@ -32387,6 +32390,9 @@
             case "worklistDetail":
               setWorklistDetail(msg.data ?? null);
               break;
+            case "testPlanDetail":
+              setTestPlanDetail(msg.data ?? null);
+              break;
             case "statusChangeResult":
               break;
           }
@@ -32397,7 +32403,7 @@
       postToExtension({ type: "ready" });
       return () => window.removeEventListener("message", handler);
     }, []);
-    return { items, worklists, settings, worklistDetail, loading, toast };
+    return { items, worklists, testPlans, settings, worklistDetail, testPlanDetail, loading, toast };
   }
 
   // src/webview/components/Dashboard.tsx
@@ -36980,14 +36986,229 @@
       sections.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { padding: 16, color: "var(--vscode-descriptionForeground)", fontSize: 12 }, children: "No checklist items found in this worklist file." })
     ] });
   }
-  function DetailPanel({ item, allItems, worklists, settings, worklistDetail, onClose, onNavigateToItem }) {
+  var STATUS_CYCLE = ["pending", "pass", "fail"];
+  function statusIcon(status) {
+    switch (status) {
+      case "pass":
+        return "\u2713";
+      case "fail":
+        return "\u2717";
+      default:
+        return "\u25CB";
+    }
+  }
+  function SortableTestRow({ test, onUpdate, onDelete, onCreateBug }) {
+    const { attributes, listeners, setNodeRef, transform: transform2, transition: transition2, isDragging } = useSortable({ id: test.id });
+    const [editing, setEditing] = (0, import_react8.useState)(false);
+    const [editText, setEditText] = (0, import_react8.useState)(test.text);
+    const style2 = {
+      transform: CSS.Transform.toString(transform2),
+      transition: transition2,
+      opacity: isDragging ? 0.5 : 1,
+      zIndex: isDragging ? 10 : "auto"
+    };
+    const commitEdit = () => {
+      setEditing(false);
+      const trimmed = editText.trim();
+      if (trimmed && trimmed !== test.text) {
+        onUpdate(test.id, { text: trimmed });
+      } else {
+        setEditText(test.text);
+      }
+    };
+    const cycleStatus = () => {
+      const idx = STATUS_CYCLE.indexOf(test.status);
+      const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+      onUpdate(test.id, { status: next });
+    };
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { ref: setNodeRef, style: style2, className: `testplan-task-row ${test.status === "fail" ? "fail" : ""}`, children: [
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("button", { className: "settings-drag-handle", ...attributes, ...listeners, title: "Drag to reorder", children: "\u2630" }),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        "button",
+        {
+          className: `testplan-status testplan-status-${test.status}`,
+          onClick: cycleStatus,
+          title: `${test.status} \u2014 click to cycle`,
+          children: statusIcon(test.status)
+        }
+      ),
+      editing ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        "input",
+        {
+          className: "worklist-task-text",
+          value: editText,
+          onChange: (e) => setEditText(e.target.value),
+          onBlur: commitEdit,
+          onKeyDown: (e) => {
+            if (e.key === "Enter")
+              commitEdit();
+            if (e.key === "Escape") {
+              setEditing(false);
+              setEditText(test.text);
+            }
+          },
+          autoFocus: true
+        }
+      ) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        "span",
+        {
+          className: `worklist-task-text ${test.status === "pass" ? "testplan-text-pass" : ""}`,
+          onClick: () => {
+            setEditing(true);
+            setEditText(test.text);
+          },
+          title: "Click to edit",
+          children: test.text
+        }
+      ),
+      test.status === "fail" && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        "button",
+        {
+          className: "testplan-bug-btn",
+          onClick: () => onCreateBug(test.text),
+          title: "File bug to worklist",
+          children: "\u{1F41B}"
+        }
+      ),
+      /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+        "button",
+        {
+          className: "settings-delete-btn",
+          onClick: () => onDelete(test.id),
+          title: "Remove test",
+          children: "\u2715"
+        }
+      )
+    ] });
+  }
+  function TestingTabContent({ detail, itemId }) {
+    const [sections, setSections] = (0, import_react8.useState)(detail.sections);
+    (0, import_react8.useEffect)(() => {
+      setSections(detail.sections);
+    }, [detail]);
+    const sensors = useSensors(
+      useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+      useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+    const save = (0, import_react8.useCallback)((updated) => {
+      setSections(updated);
+      postToExtension({ type: "saveTestPlanTests", data: { wqId: itemId, sections: updated } });
+    }, [itemId]);
+    const handleDragEnd = (sectionIdx) => (event) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id)
+        return;
+      const sec = sections[sectionIdx];
+      const oldIndex = sec.tests.findIndex((t) => t.id === active.id);
+      const newIndex = sec.tests.findIndex((t) => t.id === over.id);
+      if (oldIndex === -1 || newIndex === -1)
+        return;
+      const updated = sections.map(
+        (s, i) => i === sectionIdx ? { ...s, tests: arrayMove(s.tests, oldIndex, newIndex) } : s
+      );
+      save(updated);
+    };
+    const handleUpdateTest = (sectionIdx) => (testId, patch) => {
+      const updated = sections.map((s, i) => {
+        if (i !== sectionIdx)
+          return s;
+        return {
+          ...s,
+          tests: s.tests.map((t) => t.id === testId ? { ...t, ...patch } : t)
+        };
+      });
+      save(updated);
+    };
+    const handleDeleteTest = (sectionIdx) => (testId) => {
+      const updated = sections.map((s, i) => {
+        if (i !== sectionIdx)
+          return s;
+        return { ...s, tests: s.tests.filter((t) => t.id !== testId) };
+      });
+      save(updated);
+    };
+    const handleAddTest = (sectionIdx) => (text) => {
+      const sec = sections[sectionIdx];
+      const maxId = sections.flatMap((s) => s.tests).reduce((max, t) => {
+        const num = parseInt(t.id.replace("test-", ""), 10);
+        return num > max ? num : max;
+      }, -1);
+      const newTest = {
+        id: `test-${maxId + 1}`,
+        text,
+        status: "pending",
+        section: sec.heading
+      };
+      const updated = sections.map(
+        (s, i) => i === sectionIdx ? { ...s, tests: [...s.tests, newTest] } : s
+      );
+      save(updated);
+    };
+    const handleCreateBug = (testText) => {
+      postToExtension({ type: "createBugFromTest", data: { wqId: itemId, testText } });
+    };
+    const allTests = sections.flatMap((s) => s.tests);
+    const passCount = allTests.filter((t) => t.status === "pass").length;
+    const failCount = allTests.filter((t) => t.status === "fail").length;
+    const pendingCount = allTests.filter((t) => t.status === "pending").length;
+    const total = allTests.length;
+    return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "testplan-tab-content", children: [
+      total > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "testplan-summary", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "testplan-summary-pass", children: [
+          passCount,
+          " pass"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "testplan-summary-fail", children: [
+          failCount,
+          " fail"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "testplan-summary-pending", children: [
+          pendingCount,
+          " pending"
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "testplan-progress-bar", children: [
+          passCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "testplan-progress-pass", style: { width: `${passCount / total * 100}%` } }),
+          failCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "testplan-progress-fail", style: { width: `${failCount / total * 100}%` } }),
+          pendingCount > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "testplan-progress-pending", style: { width: `${pendingCount / total * 100}%` } })
+        ] })
+      ] }),
+      sections.map((sec, sIdx) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "worklist-section", children: [
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "worklist-section-header", children: [
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "worklist-section-title", children: sec.heading }),
+          /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "worklist-section-count", children: [
+            sec.tests.filter((t) => t.status === "pass").length,
+            "/",
+            sec.tests.length
+          ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(DndContext, { sensors, collisionDetection: closestCenter, onDragEnd: handleDragEnd(sIdx), children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(SortableContext, { items: sec.tests.map((t) => t.id), strategy: verticalListSortingStrategy, children: sec.tests.map((test) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+          SortableTestRow,
+          {
+            test,
+            onUpdate: handleUpdateTest(sIdx),
+            onDelete: handleDeleteTest(sIdx),
+            onCreateBug: handleCreateBug
+          },
+          test.id
+        )) }) }),
+        /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(AddTaskInput, { onAdd: handleAddTest(sIdx) })
+      ] }, sec.heading)),
+      sections.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { padding: 16, color: "var(--vscode-descriptionForeground)", fontSize: 12 }, children: "No test items found in this test plan file." })
+    ] });
+  }
+  function DetailPanel({ item, allItems, worklists, testPlans, settings, worklistDetail, testPlanDetail, onClose, onNavigateToItem }) {
     const [activeTab, setActiveTab] = (0, import_react8.useState)("details");
     const worklist = worklists.find((w) => w.wqId.toUpperCase() === item.id.toUpperCase());
     const hasWorklist = !!worklist;
+    const testPlan = testPlans.find((t) => t.wqId.toUpperCase() === item.id.toUpperCase());
+    const hasTestPlan = !!testPlan;
     const transitions = settings.transitions[item.status] || [];
     (0, import_react8.useEffect)(() => {
       if (activeTab === "worklist") {
         postToExtension({ type: "requestWorklistDetail", data: { wqId: item.id } });
+      }
+      if (activeTab === "testing") {
+        postToExtension({ type: "requestTestPlanDetail", data: { wqId: item.id } });
       }
     }, [activeTab, item.id]);
     const handleStatusChange = (newStatus) => {
@@ -37051,6 +37272,17 @@
               className: `detail-tab ${activeTab === "worklist" ? "active" : ""}`,
               onClick: () => setActiveTab("worklist"),
               children: "worklist"
+            }
+          ),
+          hasTestPlan && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+            "button",
+            {
+              className: `detail-tab ${activeTab === "testing" ? "active" : ""}`,
+              onClick: () => setActiveTab("testing"),
+              children: [
+                "testing",
+                testPlan && testPlan.fail > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "testplan-fail-badge", children: testPlan.fail })
+              ]
             }
           )
         ] }),
@@ -37126,7 +37358,7 @@
                 "div",
                 {
                   style: { fontSize: 12, color: "var(--vscode-textLink-foreground)", cursor: "pointer", marginTop: 2 },
-                  onClick: () => postToExtension({ type: "openSpec", data: { itemId: item.id } }),
+                  onClick: () => postToExtension({ type: "openSpec", data: { itemId: item.id, docIndex: i } }),
                   children: [
                     doc.type,
                     ": ",
@@ -37165,6 +37397,30 @@
                 }
               )
             ] }),
+            testPlan && testPlan.total > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "detail-label", children: "Test Progress" }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "testplan-progress-bar", style: { marginTop: 4 }, children: [
+                testPlan.pass > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "testplan-progress-pass", style: { width: `${testPlan.pass / testPlan.total * 100}%` } }),
+                testPlan.fail > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "testplan-progress-fail", style: { width: `${testPlan.fail / testPlan.total * 100}%` } }),
+                testPlan.pending > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "testplan-progress-pending", style: { width: `${testPlan.pending / testPlan.total * 100}%` } })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+                "div",
+                {
+                  style: { fontSize: 11, color: "var(--vscode-textLink-foreground)", marginTop: 2, cursor: "pointer" },
+                  onClick: () => setActiveTab("testing"),
+                  title: "View test plan",
+                  children: [
+                    testPlan.pass,
+                    " pass / ",
+                    testPlan.fail,
+                    " fail / ",
+                    testPlan.pending,
+                    " pending \u2014 View tests"
+                  ]
+                }
+              )
+            ] }),
             /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-meta", children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { children: [
                 "Created: ",
@@ -37184,7 +37440,8 @@
               onItemClick: handleNavigate
             }
           ),
-          activeTab === "worklist" && (worklistDetail && worklistDetail.wqId.toUpperCase() === item.id.toUpperCase() ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(WorklistTabContent, { detail: worklistDetail, itemId: item.id }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { padding: 16, color: "var(--vscode-descriptionForeground)", fontSize: 12 }, children: "Loading worklist..." }))
+          activeTab === "worklist" && (worklistDetail && worklistDetail.wqId.toUpperCase() === item.id.toUpperCase() ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(WorklistTabContent, { detail: worklistDetail, itemId: item.id }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { padding: 16, color: "var(--vscode-descriptionForeground)", fontSize: 12 }, children: "Loading worklist..." })),
+          activeTab === "testing" && (testPlanDetail && testPlanDetail.wqId.toUpperCase() === item.id.toUpperCase() ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(TestingTabContent, { detail: testPlanDetail, itemId: item.id }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { style: { padding: 16, color: "var(--vscode-descriptionForeground)", fontSize: 12 }, children: "Loading test plan..." }))
         ] }),
         /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "action-bar", children: [
           transitions.map((status) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
@@ -45718,7 +45975,7 @@
     }
   };
   function App() {
-    const { items, worklists, settings, worklistDetail, loading, toast } = useExtensionState();
+    const { items, worklists, testPlans, settings, worklistDetail, testPlanDetail, loading, toast } = useExtensionState();
     const [activeTab, setActiveTab] = (0, import_react17.useState)("dashboard");
     const [selectedItem, setSelectedItem] = (0, import_react17.useState)(null);
     const [presetFilter, setPresetFilter] = (0, import_react17.useState)({});
@@ -45821,8 +46078,10 @@
             item: selected,
             allItems: items,
             worklists,
+            testPlans,
             settings,
             worklistDetail,
+            testPlanDetail,
             onClose: handleCloseDetail,
             onNavigateToItem: handleSelectItem
           }

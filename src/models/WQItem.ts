@@ -111,3 +111,51 @@ export interface ParsedWorklist {
   rawPreamble: string;      // Lines between H1 and first H2
   sections: WorklistSection[];
 }
+
+// --- Parsed test plan types (for round-trip editing) ---
+
+/** Test status: pending (untested), pass, or fail. */
+export type TestStatus = 'pending' | 'pass' | 'fail';
+
+/** A single test item from a TEST_PLAN or TESTING_CHECKLIST file. */
+export interface TestItem {
+  id: string;            // Stable ID: "test-0", "test-1", etc.
+  text: string;          // Test description without status prefix
+  status: TestStatus;    // pending = [ ], pass = [x]/[X], fail = [!]
+  section: string;       // Section heading
+}
+
+/** A raw (non-test) line preserved for round-trip fidelity. */
+export interface TestRawLine {
+  type: 'raw';
+  text: string;
+}
+
+/** Parsed test plan section containing test items and raw lines. */
+export interface TestSection {
+  heading: string;
+  items: (TestItem | TestRawLine)[];
+}
+
+/** Full parsed test plan for round-trip serialization. */
+export interface ParsedTestPlan {
+  title: string;
+  wqIds: string[];
+  rawPreamble: string;      // Lines between H1 and first H2
+  sections: TestSection[];
+}
+
+/** Test plan progress summary. */
+export interface TestPlanProgress {
+  pass: number;
+  fail: number;
+  pending: number;
+  total: number;
+}
+
+/** Maps test plan file to WQ items (analogous to WorklistMapping). */
+export interface TestPlanMapping {
+  filePath: string;
+  wqIds: string[];
+  progress: TestPlanProgress;
+}
