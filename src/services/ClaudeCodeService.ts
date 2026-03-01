@@ -16,7 +16,7 @@ export class ClaudeCodeService implements vscode.Disposable {
   private cliPath: string;
 
   constructor(workspaceRoot: string) {
-    this.outputChannel = vscode.window.createOutputChannel('PURR WQ');
+    this.outputChannel = vscode.window.createOutputChannel('Agentic WQ');
     this.workspaceRoot = workspaceRoot;
     this.cliPath = path.join(workspaceRoot, 'documents', 'wq-system', 'wq-cli.js');
   }

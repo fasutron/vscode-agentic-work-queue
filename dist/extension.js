@@ -690,7 +690,7 @@ var ClaudeCodeService = class {
   workspaceRoot;
   cliPath;
   constructor(workspaceRoot) {
-    this.outputChannel = vscode2.window.createOutputChannel("PURR WQ");
+    this.outputChannel = vscode2.window.createOutputChannel("Agentic WQ");
     this.workspaceRoot = workspaceRoot;
     this.cliPath = path2.join(workspaceRoot, "documents", "wq-system", "wq-cli.js");
   }

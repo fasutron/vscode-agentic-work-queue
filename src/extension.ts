@@ -1,4 +1,4 @@
-// Entry point for the PURR Work Queue VS Code extension.
+// Entry point for the Agentic Work Queue VS Code extension.
 // Registers TreeView providers, file watchers, and all commands.
 
 import * as vscode from 'vscode';

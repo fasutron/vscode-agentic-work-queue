@@ -1,4 +1,4 @@
-# PURR Work Queue — VS Code Extension
+# Agentic Work Queue — VS Code Extension
 
 A VS Code extension + CLI system for tracking work items, specs, and session worklists. Built for use with Claude Code but works standalone too.
 
@@ -7,49 +7,56 @@ A VS Code extension + CLI system for tracking work items, specs, and session wor
 - **Sidebar tree views** — Browse work queue items grouped by phase, status, track, or agent-readiness grade
 - **Kanban board** — Drag-and-drop webview board with detail panel, dependency graph, and dashboard
 - **Worklist management** — View, add, edit, reorder, and check off tasks from `*WORKLIST*.md` files directly in the detail panel
+- **Testing tab** — Tri-state test checklist (pending/pass/fail) with drag-and-drop reordering, progress tracking, and bug filing from failed tests
 - **CLI tool** — `wq-cli.js` for CRUD operations, status transitions with auto-file-moving, and dependency tracking
 - **Claude Code integration** — Delegate items to explore/plan agents, auto-create worklists on status change
 - **Configurable** — Customize statuses, phases, tracks, transitions, and colors from the Settings panel
 
 ## Quick Start
 
-### Option A: Install the pre-built VSIX (fastest)
+### Option A: Use the setup script (recommended)
 
-1. Clone this repo into your project (or copy the files):
-   ```bash
-   git clone https://github.com/YOUR_ORG/vscode-wq-viewer.git
-   ```
+The setup script scaffolds your project structure and installs the extension in one step:
 
-2. Install the extension:
-   ```bash
-   code --install-extension purr-wq-viewer-0.9.0.vsix
-   ```
+```bash
+git clone https://github.com/fasutron/vscode-agentic-work-queue.git
+cd vscode-agentic-work-queue
+node setup.js /path/to/your-project
+```
 
-3. Open your project in VS Code — the Work Queue sidebar appears automatically.
+The installer will prompt you to choose between the **pre-built VSIX** (fastest) or **compile from source** (latest).
 
-### Option B: Build from source
+### Option B: Install the pre-built VSIX only
 
-1. Clone and install dependencies:
-   ```bash
-   git clone https://github.com/YOUR_ORG/vscode-wq-viewer.git
-   cd vscode-wq-viewer
-   npm install
-   ```
+A pre-built `.vsix` is included in the repo. Install directly:
 
-2. Build:
-   ```bash
-   npm run compile
-   ```
+```bash
+code --install-extension purr-wq-viewer-*.vsix
+```
 
-3. Package and install:
-   ```bash
-   npx vsce package
-   code --install-extension purr-wq-viewer-*.vsix
-   ```
+Then reload VS Code (`Ctrl+Shift+P` → "Developer: Reload Window").
 
-4. Reload VS Code.
+### Option C: Build from source
 
-## Setting Up in a New Project
+```bash
+git clone https://github.com/fasutron/vscode-agentic-work-queue.git
+cd vscode-agentic-work-queue
+npm install
+npm run compile
+npx vsce package
+code --install-extension purr-wq-viewer-*.vsix
+```
+
+### Setup Script Options
+
+```bash
+node setup.js /path/to/project     # Full setup: scaffold + install
+node setup.js                       # Same, defaults to current directory
+node setup.js --install-only        # Skip scaffolding, just install extension
+node setup.js --no-install          # Scaffold only, skip extension install
+```
+
+## Project Structure
 
 The extension expects this directory structure in your workspace root:
 
@@ -71,13 +78,7 @@ your-project/
         └── wl.md               # /project:wl skill for Claude Code
 ```
 
-**Automated setup:** Run the setup script to copy these files into any project:
-
-```bash
-node setup.js /path/to/your-project
-```
-
-**Manual setup:** Copy the `documents/` and `.claude/` directories to your project root.
+**`node setup.js`** creates this structure automatically. Or copy the `documents/` and `.claude/` directories manually.
 
 ## CLI Usage
 
@@ -97,11 +98,18 @@ node documents/wq-system/wq-cli.js view WQ-001
 node documents/wq-system/wq-cli.js list active
 node documents/wq-system/wq-cli.js list frontend
 
+# Edit an item
+node documents/wq-system/wq-cli.js edit WQ-001 --priority=10 --add-tag=urgent
+
 # Check dependencies
 node documents/wq-system/wq-cli.js deps WQ-001
+node documents/wq-system/wq-cli.js deps --blocked
 
 # Find which item owns a document
 node documents/wq-system/wq-cli.js find SPEC_Feature.md
+
+# Normalize document paths (one-time cleanup, idempotent)
+node documents/wq-system/wq-cli.js normalize
 
 # Get next available ID
 node documents/wq-system/wq-cli.js next-id
@@ -131,7 +139,7 @@ All settings are stored in `work_queue.json` alongside your data.
 
 ## Claude Code Integration
 
-If you use [Claude Code](https://claude.com/claude-code), copy the skill files to `.claude/commands/` in your project:
+If you use [Claude Code](https://claude.com/claude-code), the setup script copies skill files to `.claude/commands/` in your project:
 
 - **`wq.md`** — Provides the `/project:wq` skill for full work queue management
 - **`wl.md`** — Provides the `/project:wl` skill for session worklist management
