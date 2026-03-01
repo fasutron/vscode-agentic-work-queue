@@ -25,9 +25,9 @@ The task has one correct outcome, not a design choice.
 The codebase already contains a precedent to follow.
 
 **Pass examples:**
-- New error page → ForbiddenPage already exists as a template
-- New keyboard shortcut hook → useEffect + addEventListener is a standard React pattern
-- Wiring an existing shared component (ConfirmModal) into a new location
+- New error page → existing error page component serves as a template
+- New keyboard shortcut → standard event listener pattern already used elsewhere
+- Wiring an existing shared component into a new location
 
 **Fail examples:**
 - First-ever implementation of a pattern (e.g., first drag-and-drop, first WebSocket)
@@ -135,18 +135,18 @@ When triaging, present results in three groups:
 
 ---
 
-## Examples From Practice
+## Examples
 
-### Agent-ready (this session):
-- **WQ-189** (404 page): Score 3. ForbiddenPage template exists. One route, one component, one CSS file.
-- **WQ-147** (Ctrl+Enter): Score 3. Standard useEffect hook. Five modals to wire. Mechanically verifiable.
-- **WQ-171** (Font tokens): Score 3. Grep-defined scope. Deterministic mapping. 151 files but zero judgment.
+### Agent-ready (Score 3):
+- **404 page**: Existing error page as template. One route, one component, one CSS file.
+- **Keyboard shortcut**: Standard event listener hook. Multiple targets to wire. Mechanically verifiable.
+- **Token standardization**: Grep-defined scope. Deterministic mapping. Many files but zero judgment.
 
-### Light review (this session):
-- **WQ-136** (CardPicker onChange): Score 2. API extension is deterministic, but existing consumers need spot-checking for regressions.
-- **WQ-168** (Session confirm): Score 2. ConfirmModal pattern exists, but message copy required minor judgment.
+### Light review (Score 2):
+- **Component API extension**: Change is deterministic, but existing consumers need spot-checking for regressions.
+- **Confirmation dialog**: Shared component pattern exists, but message copy requires minor judgment.
 
-### Deferred (this session):
-- **WQ-149** (Game Tree): Needs human — visual/UX design, no existing pattern.
-- **WQ-074** (PPT Weights): Needs human — domain expertise for scoring model.
-- **WQ-133** (Rate Limiting): Needs human — cross-system (infra + backend + frontend).
+### Deferred (Needs Human):
+- **Complex visualization**: Visual/UX design required, no existing pattern to follow.
+- **Scoring model weights**: Domain expertise needed for tuning parameters.
+- **Rate limiting**: Cross-system coordination (infra + backend + frontend).

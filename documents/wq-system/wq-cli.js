@@ -6,7 +6,7 @@
  * Designed to be portable across projects using the WQ system.
  *
  * Usage:
- *   node wq-cli.js create "Title" --track=coach --phase=pre-beta
+ *   node wq-cli.js create "Title" --track=frontend --phase=development
  *   node wq-cli.js status WQ-065 active
  *   node wq-cli.js edit WQ-065 --priority=5 --tags="ui,frontend"
  *   node wq-cli.js view WQ-065
@@ -31,8 +31,8 @@ const DEFAULT_STATUS_FOLDER = {
   done: '3-completed',
   archive: '3-completed',
 };
-const DEFAULT_VALID_TRACKS = ['player', 'coach', 'quiz', 'infra', 'platform', 'production'];
-const DEFAULT_VALID_PHASES = ['pre-beta', 'beta', 'post-beta', 'production'];
+const DEFAULT_VALID_TRACKS = ['frontend', 'backend', 'infra', 'docs'];
+const DEFAULT_VALID_PHASES = ['planning', 'development', 'testing', 'production'];
 
 /**
  * Read validation lists from work_queue.json settings, with hardcoded fallback.
@@ -132,7 +132,7 @@ function cmdCreate(args) {
 
   if (!title) {
     console.error('Error: Title is required');
-    console.error('Usage: wq-cli.js create "Title" --track=coach --phase=pre-beta');
+    console.error('Usage: wq-cli.js create "Title" --track=frontend --phase=development');
     process.exit(1);
   }
 

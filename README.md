@@ -54,6 +54,7 @@ node setup.js /path/to/project     # Full setup: scaffold + install
 node setup.js                       # Same, defaults to current directory
 node setup.js --install-only        # Skip scaffolding, just install extension
 node setup.js --no-install          # Scaffold only, skip extension install
+node setup.js --no-agents          # Skip AGENTS.md integration
 ```
 
 ## Project Structure
@@ -137,9 +138,15 @@ Open the WQ Board (click the dashboard icon in the sidebar) and use the **Settin
 
 All settings are stored in `work_queue.json` alongside your data.
 
-## Claude Code Integration
+## Agent Integration
 
-If you use [Claude Code](https://claude.com/claude-code), the setup script copies skill files to `.claude/commands/` in your project:
+The setup script appends a work queue reference block to your project's `AGENTS.md`. This file is read automatically by most AI coding agents (Claude Code, Gemini Code, RooCode, Cursor, Codex, etc.) and teaches them how to use the WQ CLI.
+
+If your agent doesn't auto-read `AGENTS.md`, the setup script prints an integration prompt you can paste into your first message.
+
+### Claude Code
+
+The setup script also copies skill files to `.claude/commands/` in your project:
 
 - **`wq.md`** — Provides the `/project:wq` skill for full work queue management
 - **`wl.md`** — Provides the `/project:wl` skill for session worklist management

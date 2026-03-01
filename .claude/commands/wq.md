@@ -41,6 +41,7 @@ node documents/wq-system/wq-cli.js <command> [args] [options]
 | `deps` | `deps WQ-065` | Show item dependencies |
 | `find` | `find SPEC_Feature.md` | Find WQ by document |
 | `next-id` | `next-id` | Show next available ID |
+| `normalize` | `normalize` | Fix document paths (idempotent) |
 | `help` | `help` | Show CLI help |
 | `triage` | `triage [phase]` | Score items for agent-readiness |
 
@@ -268,6 +269,29 @@ Accepts filename, relative path, or full path. Normalizes Windows/Unix paths.
 node documents/wq-system/wq-cli.js find SPEC_Feature.md
 node documents/wq-system/wq-cli.js find 1-pending/SPEC_Feature.md
 node documents/wq-system/wq-cli.js find "documents/handoffs/1-pending/BRIEF_Feature.md"
+```
+
+---
+
+## Action: NORMALIZE
+
+One-time cleanup to fix document paths stored in `work_queue.json`. Strips redundant `documents/handoffs/` prefixes so all paths are relative to the handoffs directory.
+
+```bash
+node documents/wq-system/wq-cli.js normalize
+```
+
+This is **idempotent** — safe to run multiple times. Only modifies paths that have the redundant prefix.
+
+### When to use
+- After importing items from another project
+- If `status` commands warn about missing files during moves
+- As a one-time cleanup after upgrading `wq-cli.js`
+
+### Example
+```bash
+node documents/wq-system/wq-cli.js normalize
+# Output: Normalized 5 document path(s).
 ```
 
 ---

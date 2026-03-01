@@ -8,6 +8,7 @@
 //   node setup.js                          # defaults to current working directory
 //   node setup.js --install-only           # skip project scaffolding, just install the extension
 //   node setup.js --no-install             # scaffold only, skip extension install
+//   node setup.js --no-agents             # skip AGENTS.md integration
 
 const fs = require('fs');
 const path = require('path');
@@ -22,6 +23,7 @@ const targetRoot = path.resolve(positional[0] || process.cwd());
 
 const installOnly = flags.includes('--install-only');
 const noInstall = flags.includes('--no-install');
+const noAgents = flags.includes('--no-agents');
 
 // ============================================================
 // Helpers
@@ -53,6 +55,141 @@ function runCmd(cmd, label) {
   } catch {
     return false;
   }
+}
+
+// ============================================================
+// AGENTS.md Integration
+// ============================================================
+
+const AWQ_START = '<!-- AWQ:START -->';
+const AWQ_END = '<!-- AWQ:END -->';
+
+function getAgentsBlock() {
+  return `${AWQ_START}
+## Agentic Work Queue
+
+This project uses the [Agentic Work Queue](https://github.com/fasutron/vscode-agentic-work-queue) system for task tracking.
+
+### CLI Tool
+
+All work queue operations go through the CLI — do NOT edit \`work_queue.json\` directly.
+
+\`\`\`bash
+node documents/wq-system/wq-cli.js <command> [args] [options]
+\`\`\`
+
+| Command | Usage | Description |
+|---------|-------|-------------|
+| \`create\` | \`create "Title" --track=X --phase=Y\` | Create new item |
+| \`status\` | \`status WQ-001 active\` | Change status (auto-moves files) |
+| \`edit\` | \`edit WQ-001 --priority=5\` | Update item fields |
+| \`view\` | \`view WQ-001\` | View item details |
+| \`list\` | \`list [filter]\` | List items by status/track/phase |
+| \`deps\` | \`deps WQ-001\` | Show dependencies |
+| \`find\` | \`find SPEC_Feature.md\` | Find WQ item by document |
+| \`next-id\` | \`next-id\` | Show next available ID |
+| \`normalize\` | \`normalize\` | Fix document paths (idempotent) |
+
+### Status-Folder Mapping
+
+| Status | Folder | Description |
+|--------|--------|-------------|
+| \`intake\`, \`ready\` | \`1-pending/\` | Items awaiting or ready for work |
+| \`active\`, \`blocked\` | \`2-in_progress/\` | Currently active or blocked items |
+| \`done\`, \`archive\` | \`3-completed/\` | Finished or archived items |
+
+### Directory Structure
+
+\`\`\`
+documents/
+├── handoffs/
+│   ├── 1-pending/          # intake + ready items
+│   ├── 2-in_progress/      # active + blocked items
+│   ├── 3-completed/        # done + archived items
+│   └── work_queue.json     # work queue data (use CLI, not direct edits)
+└── wq-system/
+    ├── wq-cli.js           # CLI tool (zero external deps)
+    └── triage-criteria.md  # Agent-readiness scoring rubric
+\`\`\`
+
+### Worklist Files
+
+When a WQ item becomes \`active\`, create a \`*_WORKLIST.md\` file to track session progress:
+
+\`\`\`markdown
+# [Feature] WORKLIST
+**WQ Item:** WQ-XXX
+## Completed
+## In Progress
+- [ ] Current task
+## Deferred
+\`\`\`
+
+Use \`- [x]\` for completed tasks, \`- [ ]\` for pending tasks.
+
+### Test Plans
+
+Test plans use checklist format for interactive editing in the VS Code extension:
+
+\`\`\`markdown
+# [Feature] TEST PLAN
+**WQ Item:** WQ-XXX
+## Smoke Tests
+- [ ] Feature loads without errors
+## Functional Tests
+- [ ] Primary flow works end-to-end
+\`\`\`
+
+Use \`- [x]\` for passed, \`- [ ]\` for pending, \`- [!]\` for failed tests.
+
+### Key Rules
+
+1. **Never edit \`work_queue.json\` directly** — always use the CLI
+2. **Never manually move handoff files** — the CLI auto-syncs folders on status change
+3. **Check valid options first** — tracks, phases, and statuses are project-specific (stored in \`work_queue.json\` settings)
+${AWQ_END}`;
+}
+
+function appendAgentsMd() {
+  const agentsPath = path.join(targetRoot, 'AGENTS.md');
+  const block = getAgentsBlock();
+
+  if (fs.existsSync(agentsPath)) {
+    const existing = fs.readFileSync(agentsPath, 'utf8');
+
+    if (existing.includes(AWQ_START)) {
+      // Replace existing block
+      const regex = new RegExp(`${AWQ_START}[\\s\\S]*?${AWQ_END}`, 'g');
+      const updated = existing.replace(regex, block);
+      fs.writeFileSync(agentsPath, updated);
+      console.log(`  Updated: AGENTS.md (replaced existing AWQ block)`);
+      return;
+    }
+
+    // Append to existing file
+    const separator = existing.endsWith('\n') ? '\n' : '\n\n';
+    fs.writeFileSync(agentsPath, existing + separator + block + '\n');
+    console.log(`  Updated: AGENTS.md (appended AWQ block)`);
+  } else {
+    // Create new file
+    fs.writeFileSync(agentsPath, `# AGENTS.md\n\n${block}\n`);
+    console.log(`  Created: AGENTS.md`);
+  }
+}
+
+function printIntegrationPrompt() {
+  console.log(`\n--- Agent Integration ---\n`);
+  console.log(`  An AGENTS.md block has been added to your project with WQ system reference.`);
+  console.log(`  Most coding agents (Claude Code, Gemini Code, RooCode, etc.) will read this`);
+  console.log(`  automatically.\n`);
+  console.log(`  If your agent doesn't auto-read AGENTS.md, paste this into your first message:\n`);
+  console.log(`  ┌─────────────────────────────────────────────────────────────────────┐`);
+  console.log(`  │  This project uses the Agentic Work Queue system for task tracking. │`);
+  console.log(`  │  Read AGENTS.md for CLI commands, status-folder mappings, and       │`);
+  console.log(`  │  conventions. Use \`node documents/wq-system/wq-cli.js help\` for    │`);
+  console.log(`  │  full CLI reference. Never edit work_queue.json directly.            │`);
+  console.log(`  └─────────────────────────────────────────────────────────────────────┘`);
+  console.log('');
 }
 
 // ============================================================
@@ -275,7 +412,12 @@ async function main() {
     await installExtension();
   }
 
-  console.log(`\n--- Getting Started ---\n`);
+  if (!installOnly && !noAgents) {
+    appendAgentsMd();
+    printIntegrationPrompt();
+  }
+
+  console.log(`--- Getting Started ---\n`);
   if (!installOnly) {
     console.log(`  Create your first work item:`);
     console.log(`    node documents/wq-system/wq-cli.js create "My Feature" --track=frontend --phase=development\n`);

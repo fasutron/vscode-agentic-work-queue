@@ -39,7 +39,7 @@ wq-system/
 
 ```bash
 # Create item
-node documents/wq-system/wq-cli.js create "Feature Name" --track=coach --phase=pre-beta
+node documents/wq-system/wq-cli.js create "Feature Name" --track=frontend --phase=development
 
 # Change status (moves files automatically)
 node documents/wq-system/wq-cli.js status WQ-001 active
@@ -52,7 +52,7 @@ node documents/wq-system/wq-cli.js view WQ-001
 
 # List items
 node documents/wq-system/wq-cli.js list active
-node documents/wq-system/wq-cli.js list coach
+node documents/wq-system/wq-cli.js list frontend
 
 # Get next available ID
 node documents/wq-system/wq-cli.js next-id
@@ -75,9 +75,9 @@ node documents/wq-system/wq-cli.js help
 
 ## Valid Values
 
-**Tracks:** player, coach, quiz, infra, platform, production
+**Tracks:** Project-specific — see `work_queue.json` settings (defaults: frontend, backend, infra, docs)
 
-**Phases:** pre-beta, beta, post-beta, production
+**Phases:** Project-specific — see `work_queue.json` settings (defaults: planning, development, testing, production)
 
 **Statuses:** intake, ready, active, blocked, done, archive
 

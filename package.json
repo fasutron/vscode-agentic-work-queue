@@ -1,7 +1,7 @@
 {
   "name": "purr-wq-viewer",
-  "displayName": "PURR Work Queue",
-  "description": "Work Queue sidebar for PURR/Stratagem project management",
+  "displayName": "Agentic Work Queue",
+  "description": "Work queue sidebar for agentic project management",
   "version": "0.10.3",
   "publisher": "purr-lms",
   "engines": {
@@ -231,7 +231,7 @@
       ]
     },
     "configuration": {
-      "title": "PURR Work Queue",
+      "title": "Agentic Work Queue",
       "properties": {
         "purr-wq.defaultGrouping": {
           "type": "string",
