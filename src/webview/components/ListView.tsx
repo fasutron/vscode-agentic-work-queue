@@ -57,7 +57,12 @@ export default function ListView({ items, settings, onItemClick, presetFilter }:
     result.sort((a, b) => {
       let aVal: any = (a as any)[sortField];
       let bVal: any = (b as any)[sortField];
-      if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = (bVal ?? '').toLowerCase(); }
+      // Normalize: push undefined/null to the end
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
       if (aVal < bVal) { return sortDir === 'asc' ? -1 : 1; }
       if (aVal > bVal) { return sortDir === 'asc' ? 1 : -1; }
       return 0;
