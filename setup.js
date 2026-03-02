@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Setup script for the Agentic Work Queue system.
-// Scaffolds the WQ directory structure, CLI, and Claude Code skills into a project,
+// Scaffolds the WQ directory structure, CLI, and agent command files into a project,
 // then installs the VS Code extension (pre-built VSIX or compile from source).
 //
 // Usage:
@@ -8,7 +8,8 @@
 //   node setup.js                          # defaults to current working directory
 //   node setup.js --install-only           # skip project scaffolding, just install the extension
 //   node setup.js --no-install             # scaffold only, skip extension install
-//   node setup.js --no-agents             # skip AGENTS.md integration
+//   node setup.js --update                 # update existing install (overwrites system files, preserves user data)
+//   node setup.js --no-agents             # skip WQ_CONTEXT.md copy + agent integration prompt
 
 const fs = require('fs');
 const path = require('path');
@@ -24,10 +25,22 @@ const targetRoot = path.resolve(positional[0] || process.cwd());
 const installOnly = flags.includes('--install-only');
 const noInstall = flags.includes('--no-install');
 const noAgents = flags.includes('--no-agents');
+const updateMode = flags.includes('--update');
 
 // ============================================================
 // Helpers
 // ============================================================
+
+const color = {
+  green: (s) => `\x1b[32m${s}\x1b[0m`,
+  yellow: (s) => `\x1b[33m${s}\x1b[0m`,
+  cyan: (s) => `\x1b[36m${s}\x1b[0m`,
+  bold: (s) => `\x1b[1m${s}\x1b[0m`,
+  dim: (s) => `\x1b[2m${s}\x1b[0m`,
+  brightGreen: (s) => `\x1b[92m${s}\x1b[0m`,
+  brightCyan: (s) => `\x1b[96m${s}\x1b[0m`,
+  brightYellow: (s) => `\x1b[93m${s}\x1b[0m`,
+};
 
 function ask(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -58,137 +71,138 @@ function runCmd(cmd, label) {
 }
 
 // ============================================================
-// AGENTS.md Integration
+// Agent Integration
 // ============================================================
 
-const AWQ_START = '<!-- AWQ:START -->';
-const AWQ_END = '<!-- AWQ:END -->';
+// Agent command directory mappings
+const AGENT_CONFIGS = {
+  claude: { name: 'Claude Code', dir: '.claude/commands', detect: '.claude' },
+  codex:  { name: 'OpenAI Codex', dir: '.agents/skills', detect: '.agents' },
+};
 
-function getAgentsBlock() {
-  return `${AWQ_START}
-## Agentic Work Queue
+// Source command files (relative to sourceRoot)
+const COMMAND_FILES = ['wq.md', 'wl.md'];
 
-This project uses the [Agentic Work Queue](https://github.com/fasutron/vscode-agentic-work-queue) system for task tracking.
-
-### CLI Tool
-
-All work queue operations go through the CLI — do NOT edit \`work_queue.json\` directly.
-
-\`\`\`bash
-node documents/wq-system/wq-cli.js <command> [args] [options]
-\`\`\`
-
-| Command | Usage | Description |
-|---------|-------|-------------|
-| \`create\` | \`create "Title" --track=X --phase=Y\` | Create new item |
-| \`status\` | \`status WQ-001 active\` | Change status (auto-moves files) |
-| \`edit\` | \`edit WQ-001 --priority=5\` | Update item fields |
-| \`view\` | \`view WQ-001\` | View item details |
-| \`list\` | \`list [filter]\` | List items by status/track/phase |
-| \`deps\` | \`deps WQ-001\` | Show dependencies |
-| \`find\` | \`find SPEC_Feature.md\` | Find WQ item by document |
-| \`next-id\` | \`next-id\` | Show next available ID |
-| \`normalize\` | \`normalize\` | Fix document paths (idempotent) |
-
-### Status-Folder Mapping
-
-| Status | Folder | Description |
-|--------|--------|-------------|
-| \`intake\`, \`ready\` | \`1-pending/\` | Items awaiting or ready for work |
-| \`active\`, \`blocked\` | \`2-in_progress/\` | Currently active or blocked items |
-| \`done\`, \`archive\` | \`3-completed/\` | Finished or archived items |
-
-### Directory Structure
-
-\`\`\`
-documents/
-├── handoffs/
-│   ├── 1-pending/          # intake + ready items
-│   ├── 2-in_progress/      # active + blocked items
-│   ├── 3-completed/        # done + archived items
-│   └── work_queue.json     # work queue data (use CLI, not direct edits)
-└── wq-system/
-    ├── wq-cli.js           # CLI tool (zero external deps)
-    └── triage-criteria.md  # Agent-readiness scoring rubric
-\`\`\`
-
-### Worklist Files
-
-When a WQ item becomes \`active\`, create a \`*_WORKLIST.md\` file to track session progress:
-
-\`\`\`markdown
-# [Feature] WORKLIST
-**WQ Item:** WQ-XXX
-## Completed
-## In Progress
-- [ ] Current task
-## Deferred
-\`\`\`
-
-Use \`- [x]\` for completed tasks, \`- [ ]\` for pending tasks.
-
-### Test Plans
-
-Test plans use checklist format for interactive editing in the VS Code extension:
-
-\`\`\`markdown
-# [Feature] TEST PLAN
-**WQ Item:** WQ-XXX
-## Smoke Tests
-- [ ] Feature loads without errors
-## Functional Tests
-- [ ] Primary flow works end-to-end
-\`\`\`
-
-Use \`- [x]\` for passed, \`- [ ]\` for pending, \`- [!]\` for failed tests.
-
-### Key Rules
-
-1. **Never edit \`work_queue.json\` directly** — always use the CLI
-2. **Never manually move handoff files** — the CLI auto-syncs folders on status change
-3. **Check valid options first** — tracks, phases, and statuses are project-specific (stored in \`work_queue.json\` settings)
-${AWQ_END}`;
+function detectAgents() {
+  const detected = [];
+  for (const [key, cfg] of Object.entries(AGENT_CONFIGS)) {
+    if (fs.existsSync(path.join(targetRoot, cfg.detect))) {
+      detected.push(key);
+    }
+  }
+  return detected;
 }
 
-function appendAgentsMd() {
-  const agentsPath = path.join(targetRoot, 'AGENTS.md');
-  const block = getAgentsBlock();
+function copyCommandFiles(agentKey) {
+  const cfg = AGENT_CONFIGS[agentKey];
+  const destDir = path.join(targetRoot, cfg.dir);
 
-  if (fs.existsSync(agentsPath)) {
-    const existing = fs.readFileSync(agentsPath, 'utf8');
+  fs.mkdirSync(destDir, { recursive: true });
 
-    if (existing.includes(AWQ_START)) {
-      // Replace existing block
-      const regex = new RegExp(`${AWQ_START}[\\s\\S]*?${AWQ_END}`, 'g');
-      const updated = existing.replace(regex, block);
-      fs.writeFileSync(agentsPath, updated);
-      console.log(`  Updated: AGENTS.md (replaced existing AWQ block)`);
-      return;
+  for (const file of COMMAND_FILES) {
+    const srcPath = path.join(sourceRoot, '.claude/commands', file);
+    const destPath = path.join(destDir, file);
+
+    if (!fs.existsSync(srcPath)) {
+      console.log(`  Missing: .claude/commands/${file} (not found in repo — skipping)`);
+      continue;
     }
 
-    // Append to existing file
-    const separator = existing.endsWith('\n') ? '\n' : '\n\n';
-    fs.writeFileSync(agentsPath, existing + separator + block + '\n');
-    console.log(`  Updated: AGENTS.md (appended AWQ block)`);
-  } else {
-    // Create new file
-    fs.writeFileSync(agentsPath, `# AGENTS.md\n\n${block}\n`);
-    console.log(`  Created: AGENTS.md`);
+    if (fs.existsSync(destPath) && !updateMode) {
+      console.log(`  Exists:  ${cfg.dir}/${file}`);
+    } else {
+      fs.copyFileSync(srcPath, destPath);
+      console.log(`  ${updateMode && fs.existsSync(destPath) ? 'Updated' : 'Copied'}:  ${cfg.dir}/${file}`);
+    }
   }
+
+  console.log(`  ${color.green('✓')} Command files installed for ${cfg.name} at ${cfg.dir}/`);
 }
 
-function printIntegrationPrompt() {
+async function setupAgentCommands() {
+  console.log(`\n--- Agent Commands ---\n`);
+
+  const detected = detectAgents();
+
+  // In update mode, re-copy to all detected agents without asking
+  if (updateMode) {
+    if (detected.length === 0) {
+      // Check if commands were previously installed to any known directory
+      for (const [key, cfg] of Object.entries(AGENT_CONFIGS)) {
+        const cmdDir = path.join(targetRoot, cfg.dir);
+        if (COMMAND_FILES.some(f => fs.existsSync(path.join(cmdDir, f)))) {
+          detected.push(key);
+        }
+      }
+    }
+    if (detected.length === 0) {
+      console.log(`  No agent command directories detected. Skipping command update.`);
+      return null;
+    }
+    for (const agent of detected) {
+      copyCommandFiles(agent);
+    }
+    return detected[0]; // return primary for prompt logic
+  }
+
+  // Auto-detect
+  if (detected.length > 0) {
+    const names = detected.map(k => AGENT_CONFIGS[k].name).join(' and ');
+    console.log(`  Detected: ${color.cyan(names)}\n`);
+    const choice = await ask(`  Install WQ command files for ${names}? [Y/n]: `);
+    if (choice.toLowerCase() !== 'n') {
+      for (const agent of detected) {
+        copyCommandFiles(agent);
+      }
+      return detected[0];
+    }
+  }
+
+  // Manual selection
+  console.log(`  Which coding agent do you use?\n`);
+  console.log(`    [1] Claude Code  ${color.dim('→ .claude/commands/')}`);
+  console.log(`    [2] OpenAI Codex ${color.dim('→ .agents/skills/')}`);
+  console.log(`    [3] Other / Skip`);
+
+  const choice = await ask(`\n  Choice [1/2/3]: `);
+
+  if (choice === '1') {
+    copyCommandFiles('claude');
+    return 'claude';
+  } else if (choice === '2') {
+    copyCommandFiles('codex');
+    return 'codex';
+  }
+
+  console.log(`\n  Skipping agent command install.`);
+  return null;
+}
+
+function printIntegrationPrompt(agentChoice) {
   console.log(`\n--- Agent Integration ---\n`);
-  console.log(`  An AGENTS.md block has been added to your project with WQ system reference.`);
-  console.log(`  Most coding agents (Claude Code, Gemini Code, RooCode, etc.) will read this`);
-  console.log(`  automatically.\n`);
-  console.log(`  If your agent doesn't auto-read AGENTS.md, paste this into your first message:\n`);
-  console.log(`  ┌─────────────────────────────────────────────────────────────────────┐`);
-  console.log(`  │  This project uses the Agentic Work Queue system for task tracking. │`);
-  console.log(`  │  Read AGENTS.md for CLI commands, status-folder mappings, and       │`);
-  console.log(`  │  conventions. Use \`node documents/wq-system/wq-cli.js help\` for    │`);
-  console.log(`  │  full CLI reference. Never edit work_queue.json directly.            │`);
-  console.log(`  └─────────────────────────────────────────────────────────────────────┘`);
+  console.log(`  ${color.green('✓')} WQ_CONTEXT.md installed at documents/wq-system/WQ_CONTEXT.md`);
+
+  if (agentChoice) {
+    const cfg = AGENT_CONFIGS[agentChoice];
+    console.log(`  ${color.green('✓')} Command files (wq.md, wl.md) installed at ${cfg.dir}/\n`);
+  } else {
+    console.log('');
+  }
+
+  console.log(`  ${color.brightYellow('→ Paste this to your coding agent to complete setup:')}\n`);
+  console.log(`  ${color.dim('---')}`);
+  console.log(`  The Agentic Work Queue has been installed in this project.`);
+  console.log(`  Read documents/wq-system/WQ_CONTEXT.md for full context (CLI commands,`);
+  console.log(`  status-folder mappings, conventions). Then insert that context into the`);
+  console.log(`  appropriate persistent file for your environment (CLAUDE.md,`);
+  console.log(`  .github/copilot-instructions.md, .cursorrules, etc.)`);
+
+  if (!agentChoice) {
+    console.log(`  Command files (wq.md, wl.md) are in documents/wq-system/ — copy them`);
+    console.log(`  to your agent's command directory if it supports custom commands.`);
+  }
+
+  console.log(`  ${color.dim('---')}`);
   console.log('');
 }
 
@@ -197,7 +211,7 @@ function printIntegrationPrompt() {
 // ============================================================
 
 function scaffoldProject() {
-  console.log(`\nAgentic Work Queue — Project Setup`);
+  console.log(`\nAgentic Work Queue — ${updateMode ? 'Update' : 'Project Setup'}`);
   console.log(`Target: ${targetRoot}\n`);
 
   if (!fs.existsSync(targetRoot)) {
@@ -210,15 +224,15 @@ function scaffoldProject() {
     'documents/handoffs/2-in_progress',
     'documents/handoffs/3-completed',
     'documents/wq-system',
-    '.claude/commands',
   ];
 
+  // System files: overwritten on --update, skipped if exists on fresh install
+  // Agent command files (wq.md, wl.md) are handled separately by setupAgentCommands()
   const files = [
     ['documents/wq-system/wq-cli.js', 'documents/wq-system/wq-cli.js'],
+    ['documents/wq-system/WQ_CONTEXT.md', 'documents/wq-system/WQ_CONTEXT.md'],
     ['documents/wq-system/README.md', 'documents/wq-system/README.md'],
     ['documents/wq-system/triage-criteria.md', 'documents/wq-system/triage-criteria.md'],
-    ['.claude/commands/wq.md', '.claude/commands/wq.md'],
-    ['.claude/commands/wl.md', '.claude/commands/wl.md'],
   ];
 
   const starterWQ = {
@@ -257,6 +271,7 @@ function scaffoldProject() {
   };
 
   let created = 0;
+  let updated = 0;
   let skipped = 0;
 
   for (const dir of dirs) {
@@ -281,8 +296,14 @@ function scaffoldProject() {
     }
 
     if (fs.existsSync(destPath)) {
-      console.log(`  Exists:  ${dest}`);
-      skipped++;
+      if (updateMode) {
+        fs.copyFileSync(srcPath, destPath);
+        console.log(`  Updated: ${dest}`);
+        updated++;
+      } else {
+        console.log(`  Exists:  ${dest}`);
+        skipped++;
+      }
     } else {
       fs.copyFileSync(srcPath, destPath);
       console.log(`  Copied:  ${dest}`);
@@ -290,13 +311,14 @@ function scaffoldProject() {
     }
   }
 
+  // User data: never overwritten, even in update mode
   const wqPath = path.join(targetRoot, 'documents/handoffs/work_queue.json');
   if (!fs.existsSync(wqPath)) {
     fs.writeFileSync(wqPath, JSON.stringify(starterWQ, null, 2) + '\n');
     console.log(`  Created: documents/handoffs/work_queue.json`);
     created++;
   } else {
-    console.log(`  Exists:  documents/handoffs/work_queue.json`);
+    console.log(`  ${updateMode ? 'Kept:   ' : 'Exists: '} documents/handoffs/work_queue.json ${updateMode ? color.dim('(user data, not overwritten)') : ''}`);
     skipped++;
   }
 
@@ -310,7 +332,10 @@ function scaffoldProject() {
     }
   }
 
-  console.log(`\nScaffolding complete: ${created} created, ${skipped} already existed.`);
+  const summary = updateMode
+    ? `${updated} updated, ${created} created, ${skipped} unchanged`
+    : `${created} created, ${skipped} already existed`;
+  console.log(`\n  ${color.green('✓')} ${updateMode ? 'Update' : 'Scaffolding'} complete: ${summary}.`);
 }
 
 // ============================================================
@@ -339,7 +364,7 @@ async function installExtension() {
     const vsixPath = path.join(sourceRoot, existingVsix);
     console.log(`\n  Installing ${existingVsix}...`);
     if (runCmd(`code --install-extension "${vsixPath}"`, `code --install-extension ${existingVsix}`)) {
-      console.log(`\n  Extension installed. Reload VS Code to activate.`);
+      console.log(`\n  ${color.green('✓')} Extension installed.`);
     } else {
       console.error(`\n  Install failed. Try manually: code --install-extension "${vsixPath}"`);
     }
@@ -389,7 +414,7 @@ async function compileAndInstall() {
   const vsixPath = path.join(sourceRoot, vsix);
   console.log(`\n  Installing ${vsix}...`);
   if (runCmd(`code --install-extension "${vsixPath}"`, `code --install-extension ${vsix}`)) {
-    console.log(`\n  Extension installed. Reload VS Code to activate.`);
+    console.log(`\n  ${color.green('✓')} Extension installed.`);
   } else {
     console.error(`\n  Install failed. Try manually: code --install-extension "${vsixPath}"`);
   }
@@ -400,12 +425,17 @@ async function compileAndInstall() {
 // ============================================================
 
 async function main() {
-  console.log(`\n========================================`);
-  console.log(`  Agentic Work Queue — Setup`);
-  console.log(`========================================`);
+  console.log(`\n${color.bold('========================================')}`);
+  console.log(color.bold(`  Agentic Work Queue — Setup`));
+  console.log(`${color.bold('========================================')}`);
 
   if (!installOnly) {
     scaffoldProject();
+  }
+
+  let agentChoice = null;
+  if (!installOnly && !noAgents) {
+    agentChoice = await setupAgentCommands();
   }
 
   if (!noInstall) {
@@ -413,17 +443,26 @@ async function main() {
   }
 
   if (!installOnly && !noAgents) {
-    appendAgentsMd();
-    printIntegrationPrompt();
+    printIntegrationPrompt(agentChoice);
   }
 
-  console.log(`--- Getting Started ---\n`);
+  console.log(color.bold(`--- Next Steps ---\n`));
   if (!installOnly) {
-    console.log(`  Create your first work item:`);
-    console.log(`    node documents/wq-system/wq-cli.js create "My Feature" --track=frontend --phase=development\n`);
+    console.log(`  ${color.brightGreen('1.')} Create your first work item:`);
+    console.log(`     ${color.cyan('node documents/wq-system/wq-cli.js create "My Feature" --track=frontend --phase=development')}\n`);
   }
-  console.log(`  Open VS Code and look for "Work Queue" in the sidebar.`);
-  console.log(`  For CLI help: node documents/wq-system/wq-cli.js --help\n`);
+  console.log(`  ${color.brightGreen(!installOnly ? '2.' : '1.')} ${color.bold('Reload VS Code')} (Ctrl+Shift+P → "Developer: Reload Window")`);
+  console.log(`     Then look for "Work Queue" in the sidebar.\n`);
+  console.log(`  ${color.brightGreen(!installOnly ? '3.' : '2.')} ${color.bold('Set a keyboard shortcut for the board view')} ${color.dim('(optional)')}`);
+  console.log(`     Open Keyboard Shortcuts (Ctrl+K Ctrl+S), search for ${color.cyan('"wq show board"')},`);
+  console.log(`     and assign your preferred key.\n`);
+  console.log(`  ${color.dim('CLI help:')} node documents/wq-system/wq-cli.js --help\n`);
+
+  if (!updateMode) {
+    console.log(color.dim(`  To update later: git pull this repo, then run:`));
+    console.log(color.dim(`  node ${path.relative(targetRoot, path.join(sourceRoot, 'setup.js'))} --update ${targetRoot === process.cwd() ? '' : targetRoot}`));
+    console.log('');
+  }
 }
 
 main().catch(err => {

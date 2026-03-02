@@ -54,8 +54,20 @@ node setup.js /path/to/project     # Full setup: scaffold + install
 node setup.js                       # Same, defaults to current directory
 node setup.js --install-only        # Skip scaffolding, just install extension
 node setup.js --no-install          # Scaffold only, skip extension install
-node setup.js --no-agents          # Skip AGENTS.md integration
+node setup.js --update              # Update system files (preserves your data)
+node setup.js --no-agents          # Skip agent integration prompt
 ```
+
+### Updating
+
+To update an existing installation after pulling a new version of the extension repo:
+
+```bash
+cd path/to/extension-repo && git pull
+node setup.js --update /path/to/your-project
+```
+
+This overwrites system files (CLI, skill files, WQ_CONTEXT.md) but never touches your `work_queue.json` or handoff directories.
 
 ## Project Structure
 
@@ -140,9 +152,37 @@ All settings are stored in `work_queue.json` alongside your data.
 
 ## Agent Integration
 
-The setup script appends a work queue reference block to your project's `AGENTS.md`. This file is read automatically by most AI coding agents (Claude Code, Gemini Code, RooCode, Cursor, Codex, etc.) and teaches them how to use the WQ CLI.
+The setup script copies `WQ_CONTEXT.md` into your project at `documents/wq-system/WQ_CONTEXT.md`. This file contains the full WQ system reference (CLI commands, status-folder mappings, conventions).
 
-If your agent doesn't auto-read `AGENTS.md`, the setup script prints an integration prompt you can paste into your first message.
+After setup, the installer prints a prompt you can paste to your coding agent. The agent reads `WQ_CONTEXT.md` and inserts the context into whatever persistent file it uses (CLAUDE.md, .github/copilot-instructions.md, .cursorrules, etc.).
+
+### Talking to Your Agent
+
+Once the WQ context is in your agent's environment, you can reference the work queue and worklists naturally in conversation. Your agent will know what "WQ" and "WL" mean.
+
+**Work Queue (WQ) examples:**
+
+> "For the invite workflow, check our WQ to see if we have this already defined as a task somewhere."
+
+> "I want to add dark mode support. Create a WQ item for it on the frontend track, planning phase."
+
+> "What's active in the WQ right now? Pick the highest priority item and start a worklist for it."
+
+> "We just found a race condition in the checkout flow. Add it to the WQ as blocked, backend track, and link it as a dependency of WQ-012."
+
+> "I'm done with WQ-008. Mark it done and move WQ-009 to active — that's next."
+
+**Session Worklist (WL) examples:**
+
+> "What's on my WL right now? Show me where I'm at."
+
+> "Add 'fix the flaky timeout in the upload test' to my WL."
+
+> "The auth refactor is done — mark it complete on the WL."
+
+> "WL status — how many tasks do I have left?"
+
+> "I'm starting a spike on caching. Create a WL for it, no WQ item yet."
 
 ### Claude Code
 

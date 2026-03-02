@@ -1,7 +1,7 @@
 # AGENTS.md — Agentic Work Queue Extension
 
 > This file provides context for AI coding agents working on the extension itself.
-> For consumer project integration, see the block appended by `setup.js` to your project's AGENTS.md.
+> For consumer project integration, see `documents/wq-system/WQ_CONTEXT.md`.
 
 ## Project Overview
 
@@ -83,7 +83,9 @@ The `setup.js` installer scaffolds the WQ system into consumer projects:
 - Creates `documents/handoffs/` directory structure
 - Copies `wq-cli.js`, skill files, and triage criteria
 - Initializes `work_queue.json`
-- Appends a delimited block to the consumer's `AGENTS.md`
-- Prints an integration prompt the user can paste into their coding agent
+- Copies `WQ_CONTEXT.md` into consumer project at `documents/wq-system/`
+- Prints an agent-agnostic integration prompt for the user to paste to their coding agent
 
-The appended AGENTS.md block teaches any coding agent how to use the WQ CLI.
+The `WQ_CONTEXT.md` file teaches any coding agent how to use the WQ CLI.
+
+Use `setup.js --update` to overwrite system files (CLI, skills, WQ_CONTEXT.md) while preserving user data (`work_queue.json`, handoff directories).
