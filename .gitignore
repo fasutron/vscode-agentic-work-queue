@@ -3,5 +3,6 @@ node_modules/
 # Agent-specific local config (see CONTRIBUTING.md for contributor setup)
 CLAUDE.md
 .claude/settings.json
+.claude/settings.local.json
 .claude/projects/
 .claude/todo.md
