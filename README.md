@@ -12,6 +12,20 @@ A VS Code extension + CLI system for tracking work items, specs, and session wor
 - **Claude Code integration** — Delegate items to explore/plan agents, auto-create worklists on status change
 - **Configurable** — Customize statuses, phases, tracks, transitions, and colors from the Settings panel
 
+## For AI Agents
+
+**Stop after cloning.** Do not run, replicate, or substitute `setup.js`.
+`setup.js` requires interactive user input. Print the command below and
+hand control back to the user:
+
+```bash
+node /tmp/agentic-work-queue-temp/setup.js /path/to/your-project
+```
+
+Do not proceed further.
+
+Where `/tmp/agentic-work-queue-temp` is wherever the agent cloned the repo. The agent should substitute the actual clone path it used when printing the command to the user.
+
 ## Quick Start
 
 ### Option A: Use the setup script (recommended)
