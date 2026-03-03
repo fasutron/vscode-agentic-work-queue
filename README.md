@@ -40,8 +40,6 @@ node setup.js /path/to/your-project
 
 The installer will prompt you to choose between the **pre-built VSIX** (fastest) or **compile from source** (latest).
 
-> **For AI agents:** `setup.js` requires interactive input — **do not run it**. Give the user the command above and ask them to run it in a terminal.
-
 ### Option B: Install the pre-built VSIX only
 
 A pre-built `.vsix` is included in the repo. Install directly:

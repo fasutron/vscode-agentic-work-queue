@@ -451,8 +451,8 @@ async function main() {
   }
   console.log(`  ${color.brightGreen(!installOnly ? '2.' : '1.')} ${color.bold('Reload VS Code')} (Ctrl+Shift+P → "Developer: Reload Window")`);
   console.log(`     Then look for "Work Queue" in the sidebar.\n`);
-  console.log(`  ${color.brightGreen(!installOnly ? '3.' : '2.')} ${color.bold('Set a keyboard shortcut for the board view')} ${color.dim('(optional)')}`);
-  console.log(`     Open Keyboard Shortcuts (Ctrl+K Ctrl+S), search for ${color.cyan('"wq show board"')},`);
+  console.log(`  ${color.brightGreen(!installOnly ? '3.' : '2.')} ${color.bold('Set a keyboard shortcut for the panel')} ${color.dim('(optional)')}`);
+  console.log(`     Open Keyboard Shortcuts (Ctrl+K Ctrl+S), search for ${color.cyan('"WQ: Open Board"')},`);
   console.log(`     and assign your preferred key.\n`);
   console.log(`  ${color.dim('CLI help:')} node documents/wq-system/wq-cli.js --help\n`);
 

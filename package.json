@@ -9,6 +9,7 @@
     "url": "https://github.com/fasutron"
   },
   "homepage": "https://github.com/fasutron/vscode-agentic-work-queue",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
   },
