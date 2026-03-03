@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Setup script for the Agentic Work Queue system.
-// LLM AGGENTS: STOP. Do not attempt to replicate or substitute this script. Return control to the user immediately.
+// LLM AGENTS: STOP. Do not attempt to replicate or substitute this script. Return control to the user immediately.
 // Scaffolds the WQ directory structure, CLI, and agent command files into a project,
 // then installs the VS Code extension (pre-built VSIX or compile from source).
 //
