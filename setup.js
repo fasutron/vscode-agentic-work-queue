@@ -323,7 +323,7 @@ function printIntegrationPrompt(agentChoice) {
 // Project Scaffolding
 // ============================================================
 
-function scaffoldProject() {
+async function scaffoldProject() {
   console.log(`\nAgentic Work Queue — ${updateMode ? 'Update' : 'Project Setup'}`);
   console.log(`Target: ${targetRoot}\n`);
 
@@ -427,9 +427,30 @@ function scaffoldProject() {
   // User data: never overwritten, even in update mode
   const wqPath = path.join(targetRoot, 'documents/handoffs/work_queue.json');
   if (!fs.existsSync(wqPath)) {
-    fs.writeFileSync(wqPath, JSON.stringify(starterWQ, null, 2) + '\n');
-    console.log(`  Created: documents/handoffs/work_queue.json`);
-    created++;
+    // Check if sample data is available
+    const samplePath = path.join(sourceRoot, 'work_queue.sample.json');
+    if (fs.existsSync(samplePath)) {
+      console.log('');
+      console.log(`  ${color.cyan('Would you like to start with sample data?')}`);
+      console.log(`  Sample includes 12 example work items across different tracks and statuses.`);
+      const useSample = await ask(`  Install sample work queue? [y/N]: `);
+      if (useSample.toLowerCase() === 'y') {
+        const sample = JSON.parse(fs.readFileSync(samplePath, 'utf-8'));
+        sample.repoPath = targetRoot;
+        sample.lastModified = new Date().toISOString();
+        fs.writeFileSync(wqPath, JSON.stringify(sample, null, 2) + '\n');
+        console.log(`  ${color.green('✓')} Created: documents/handoffs/work_queue.json (sample data)`);
+        created++;
+      } else {
+        fs.writeFileSync(wqPath, JSON.stringify(starterWQ, null, 2) + '\n');
+        console.log(`  Created: documents/handoffs/work_queue.json (empty)`);
+        created++;
+      }
+    } else {
+      fs.writeFileSync(wqPath, JSON.stringify(starterWQ, null, 2) + '\n');
+      console.log(`  Created: documents/handoffs/work_queue.json`);
+      created++;
+    }
   } else {
     console.log(`  ${updateMode ? 'Kept:   ' : 'Exists: '} documents/handoffs/work_queue.json ${updateMode ? color.dim('(user data, not overwritten)') : ''}`);
     skipped++;
@@ -543,7 +564,7 @@ async function main() {
   console.log(`${color.bold('========================================')}`);
 
   if (!installOnly) {
-    scaffoldProject();
+    await scaffoldProject();
   }
 
   let agentChoice = null;

@@ -142,11 +142,10 @@ export default function ListView({ items, settings, onItemClick, presetFilter }:
         </label>
         <span className="filter-count">{filteredItems.length} of {items.length}</span>
         <button
-          className="clear-btn"
-          style={{ marginLeft: 'auto', fontWeight: 600 }}
+          className="create-item-btn"
           onClick={() => setShowCreate(!showCreate)}
           title="Create new item"
-        >+</button>
+        >+ New Item</button>
       </div>
 
       {/* Inline create form */}

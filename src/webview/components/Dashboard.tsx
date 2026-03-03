@@ -55,8 +55,21 @@ export default function Dashboard({ items, worklists, settings, onItemClick, onS
 
   const maxTrack = Math.max(...trackOrder.map(t => stats.trackCounts[t] || 0), 1);
 
+  const isEmpty = items.length === 0;
+
   return (
     <div className="dashboard">
+      {/* Empty state hint */}
+      {isEmpty && (
+        <div className="dashboard-empty-hint" onClick={() => onSwitchToList({})}>
+          <div className="dashboard-empty-icon">+</div>
+          <div className="dashboard-empty-title">No work items yet</div>
+          <div className="dashboard-empty-subtitle">
+            Go to the <strong>List</strong> tab and click <strong>+ New Item</strong> to create your first work item.
+          </div>
+        </div>
+      )}
+
       {/* Status cards */}
       <div className="stats-grid">
         {statusOrder.map(status => (

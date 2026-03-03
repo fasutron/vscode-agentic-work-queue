@@ -1,0 +1,266 @@
+{
+  "version": "1.0.0",
+  "repoPath": "/path/to/your-project",
+  "lastModified": "2026-03-03T12:00:00.000Z",
+  "ideAgentPreamble": "You are assisting with a sample project. Read documents/wq-system/WQ_CONTEXT.md for conventions.",
+  "settings": {
+    "statuses": [
+      { "id": "intake", "label": "Intake", "system": true, "folder": "1-pending", "color": "#e5c07b" },
+      { "id": "ready", "label": "Ready", "folder": "1-pending", "color": "#9ca3af" },
+      { "id": "active", "label": "Active", "system": true, "folder": "2-in_progress", "color": "#61afef" },
+      { "id": "blocked", "label": "Blocked", "folder": "2-in_progress", "color": "#e06c75" },
+      { "id": "done", "label": "Done", "system": true, "folder": "3-completed", "color": "#98c379" },
+      { "id": "archive", "label": "Archive", "system": true, "folder": "3-completed", "color": "#5c6370" }
+    ],
+    "phases": [
+      { "id": "planning", "label": "Planning", "color": "#e5c07b" },
+      { "id": "development", "label": "Development", "color": "#61afef" },
+      { "id": "testing", "label": "Testing", "color": "#9ca3af" },
+      { "id": "production", "label": "Production", "color": "#98c379" }
+    ],
+    "tracks": [
+      { "id": "frontend", "label": "Frontend", "color": "#3b82f6" },
+      { "id": "backend", "label": "Backend", "color": "#22c55e" },
+      { "id": "infra", "label": "Infra", "color": "#f97316" },
+      { "id": "docs", "label": "Docs", "color": "#a855f7" }
+    ],
+    "transitions": {
+      "intake": ["ready", "active"],
+      "ready": ["active"],
+      "active": ["blocked", "done"],
+      "blocked": ["active"],
+      "done": ["archive"]
+    }
+  },
+  "items": [
+    {
+      "id": "WQ-001",
+      "title": "User Authentication API",
+      "summary": "Implement JWT-based auth with login, signup, token refresh, and password reset endpoints.",
+      "status": "done",
+      "track": "backend",
+      "phase": "development",
+      "priority": 1,
+      "effort": "3d",
+      "tags": ["auth", "api", "security"],
+      "documents": [
+        { "type": "spec", "path": "3-completed/SPEC_Auth_API.md" }
+      ],
+      "dependsOn": [],
+      "blocks": ["WQ-002", "WQ-003"],
+      "createdAt": "2026-01-15T00:00:00.000Z",
+      "updatedAt": "2026-02-20T14:30:00.000Z",
+      "statusHistory": [
+        { "from": "intake", "to": "active", "at": "2026-01-16T09:00:00.000Z" },
+        { "from": "active", "to": "done", "at": "2026-02-20T14:30:00.000Z" }
+      ]
+    },
+    {
+      "id": "WQ-002",
+      "title": "Login & Signup UI",
+      "summary": "Frontend auth forms with validation, error handling, and OAuth social login buttons.",
+      "status": "active",
+      "track": "frontend",
+      "phase": "development",
+      "priority": 2,
+      "effort": "2d",
+      "tags": ["auth", "ui", "forms"],
+      "documents": [
+        { "type": "spec", "path": "2-in_progress/SPEC_Login_Signup_UI.md" }
+      ],
+      "dependsOn": ["WQ-001"],
+      "blocks": ["WQ-007"],
+      "createdAt": "2026-01-20T00:00:00.000Z",
+      "updatedAt": "2026-03-01T10:00:00.000Z",
+      "statusHistory": [
+        { "from": "intake", "to": "ready", "at": "2026-02-01T09:00:00.000Z" },
+        { "from": "ready", "to": "active", "at": "2026-03-01T10:00:00.000Z" }
+      ]
+    },
+    {
+      "id": "WQ-003",
+      "title": "Role-Based Access Control",
+      "summary": "Middleware and route guards for admin, editor, and viewer roles.",
+      "status": "active",
+      "track": "backend",
+      "phase": "development",
+      "priority": 3,
+      "effort": "2d",
+      "tags": ["auth", "rbac", "middleware"],
+      "documents": [
+        { "type": "spec", "path": "2-in_progress/SPEC_RBAC.md" }
+      ],
+      "dependsOn": ["WQ-001"],
+      "blocks": [],
+      "createdAt": "2026-01-22T00:00:00.000Z",
+      "updatedAt": "2026-03-02T11:00:00.000Z",
+      "statusHistory": [
+        { "from": "intake", "to": "active", "at": "2026-03-02T11:00:00.000Z" }
+      ]
+    },
+    {
+      "id": "WQ-004",
+      "title": "Database Migration Framework",
+      "summary": "Set up migration tooling with up/down scripts, seed data, and CI integration.",
+      "status": "done",
+      "track": "infra",
+      "phase": "development",
+      "priority": 4,
+      "effort": "1d",
+      "tags": ["database", "migrations", "ci"],
+      "documents": [],
+      "dependsOn": [],
+      "blocks": ["WQ-005"],
+      "createdAt": "2026-01-10T00:00:00.000Z",
+      "updatedAt": "2026-02-05T16:00:00.000Z",
+      "statusHistory": [
+        { "from": "intake", "to": "active", "at": "2026-01-11T09:00:00.000Z" },
+        { "from": "active", "to": "done", "at": "2026-02-05T16:00:00.000Z" }
+      ]
+    },
+    {
+      "id": "WQ-005",
+      "title": "REST API for Projects CRUD",
+      "summary": "Create, read, update, delete endpoints for projects with pagination and filtering.",
+      "status": "active",
+      "track": "backend",
+      "phase": "development",
+      "priority": 5,
+      "effort": "2d",
+      "tags": ["api", "crud", "projects"],
+      "documents": [
+        { "type": "spec", "path": "2-in_progress/SPEC_Projects_API.md" }
+      ],
+      "dependsOn": ["WQ-004"],
+      "blocks": ["WQ-006"],
+      "createdAt": "2026-02-01T00:00:00.000Z",
+      "updatedAt": "2026-03-01T08:00:00.000Z",
+      "statusHistory": [
+        { "from": "intake", "to": "active", "at": "2026-03-01T08:00:00.000Z" }
+      ]
+    },
+    {
+      "id": "WQ-006",
+      "title": "Project List & Detail Views",
+      "summary": "Frontend pages for browsing projects, search/filter, and project detail with tabs.",
+      "status": "blocked",
+      "track": "frontend",
+      "phase": "development",
+      "priority": 6,
+      "effort": "3d",
+      "tags": ["ui", "projects", "views"],
+      "documents": [],
+      "dependsOn": ["WQ-005"],
+      "blocks": [],
+      "createdAt": "2026-02-05T00:00:00.000Z",
+      "updatedAt": "2026-03-02T09:00:00.000Z",
+      "statusHistory": [
+        { "from": "intake", "to": "active", "at": "2026-02-28T09:00:00.000Z" },
+        { "from": "active", "to": "blocked", "at": "2026-03-02T09:00:00.000Z" }
+      ],
+      "notes": "Blocked on WQ-005 API endpoints"
+    },
+    {
+      "id": "WQ-007",
+      "title": "E2E Test Suite Setup",
+      "summary": "Configure Playwright for end-to-end testing with auth fixtures and CI pipeline.",
+      "status": "ready",
+      "track": "infra",
+      "phase": "testing",
+      "priority": 7,
+      "effort": "1d",
+      "tags": ["testing", "e2e", "ci"],
+      "documents": [],
+      "dependsOn": ["WQ-002"],
+      "blocks": ["WQ-012"],
+      "createdAt": "2026-02-10T00:00:00.000Z",
+      "updatedAt": "2026-02-10T00:00:00.000Z"
+    },
+    {
+      "id": "WQ-008",
+      "title": "API Documentation",
+      "summary": "OpenAPI spec generation from route definitions with Swagger UI hosting.",
+      "status": "intake",
+      "track": "docs",
+      "phase": "planning",
+      "priority": 8,
+      "effort": "1d",
+      "tags": ["docs", "api", "openapi"],
+      "documents": [],
+      "dependsOn": [],
+      "blocks": [],
+      "createdAt": "2026-02-15T00:00:00.000Z",
+      "updatedAt": "2026-02-15T00:00:00.000Z"
+    },
+    {
+      "id": "WQ-009",
+      "title": "Dark Mode Support",
+      "summary": "Theme system with CSS variables, user preference persistence, and system detection.",
+      "status": "ready",
+      "track": "frontend",
+      "phase": "development",
+      "priority": 9,
+      "effort": "1d",
+      "tags": ["ui", "theming", "accessibility"],
+      "documents": [],
+      "dependsOn": [],
+      "blocks": [],
+      "createdAt": "2026-02-18T00:00:00.000Z",
+      "updatedAt": "2026-02-18T00:00:00.000Z"
+    },
+    {
+      "id": "WQ-010",
+      "title": "CI/CD Pipeline",
+      "summary": "GitHub Actions workflow for lint, test, build, and deploy to staging on merge.",
+      "status": "done",
+      "track": "infra",
+      "phase": "production",
+      "priority": 10,
+      "effort": "1d",
+      "tags": ["ci", "deployment", "automation"],
+      "documents": [
+        { "type": "spec", "path": "3-completed/SPEC_CICD.md" }
+      ],
+      "dependsOn": [],
+      "blocks": [],
+      "createdAt": "2026-01-08T00:00:00.000Z",
+      "updatedAt": "2026-01-25T17:00:00.000Z",
+      "statusHistory": [
+        { "from": "intake", "to": "active", "at": "2026-01-09T09:00:00.000Z" },
+        { "from": "active", "to": "done", "at": "2026-01-25T17:00:00.000Z" }
+      ]
+    },
+    {
+      "id": "WQ-011",
+      "title": "Error Monitoring Integration",
+      "summary": "Integrate Sentry for error tracking with source maps, environment tags, and alerting.",
+      "status": "intake",
+      "track": "infra",
+      "phase": "planning",
+      "priority": 11,
+      "effort": "4h",
+      "tags": ["monitoring", "sentry", "observability"],
+      "documents": [],
+      "dependsOn": [],
+      "blocks": [],
+      "createdAt": "2026-02-22T00:00:00.000Z",
+      "updatedAt": "2026-02-22T00:00:00.000Z"
+    },
+    {
+      "id": "WQ-012",
+      "title": "User Onboarding Flow",
+      "summary": "Guided first-run experience with project creation wizard, sample data, and feature tour.",
+      "status": "intake",
+      "track": "frontend",
+      "phase": "planning",
+      "priority": 12,
+      "effort": "3d",
+      "tags": ["ux", "onboarding", "wizard"],
+      "documents": [],
+      "dependsOn": ["WQ-007"],
+      "blocks": [],
+      "createdAt": "2026-03-01T00:00:00.000Z",
+      "updatedAt": "2026-03-01T00:00:00.000Z"
+    }
+  ]
+}

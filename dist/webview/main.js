@@ -32437,7 +32437,19 @@
       return { statusCounts, phaseCounts, trackCounts, total: counted.length, wlCompleted, wlTotal };
     }, [items, worklists, includeDone]);
     const maxTrack = Math.max(...trackOrder.map((t) => stats.trackCounts[t] || 0), 1);
+    const isEmpty = items.length === 0;
     return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dashboard", children: [
+      isEmpty && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dashboard-empty-hint", onClick: () => onSwitchToList({}), children: [
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dashboard-empty-icon", children: "+" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "dashboard-empty-title", children: "No work items yet" }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "dashboard-empty-subtitle", children: [
+          "Go to the ",
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "List" }),
+          " tab and click ",
+          /* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "+ New Item" }),
+          " to create your first work item."
+        ] })
+      ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "stats-grid", children: [
         statusOrder.map((status) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "stat-card", onClick: () => onSwitchToList({ status }), children: [
           /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "stat-value", style: { color: `var(--wq-status-${status})` }, children: stats.statusCounts[status] || 0 }),
@@ -32687,11 +32699,10 @@
         /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
           "button",
           {
-            className: "clear-btn",
-            style: { marginLeft: "auto", fontWeight: 600 },
+            className: "create-item-btn",
             onClick: () => setShowCreate(!showCreate),
             title: "Create new item",
-            children: "+"
+            children: "+ New Item"
           }
         )
       ] }),

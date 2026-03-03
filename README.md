@@ -15,16 +15,18 @@ A VS Code extension + CLI system for tracking work items, specs, and session wor
 ## For AI Agents
 
 **Stop after cloning.** Do not run, replicate, or substitute `setup.js`.
-`setup.js` requires interactive user input. Print the command below and
-hand control back to the user:
+`setup.js` requires interactive user input.
+
+1. Clone this repo to a **temp directory** — NOT the user's project folder:
+   - Linux/macOS: `/tmp/agentic-wq`
+   - Windows: `%TEMP%\agentic-wq`
+2. Print the setup command for the user to run manually, substituting the actual clone path and project path:
 
 ```bash
-node /tmp/agentic-work-queue-temp/setup.js /path/to/your-project
+node <clone-path>/setup.js <project-path>
 ```
 
-Do not proceed further.
-
-Where `/tmp/agentic-work-queue-temp` is wherever the agent cloned the repo. The agent should substitute the actual clone path it used when printing the command to the user.
+3. Do not proceed further. Do not offer to run the command. The user will run it themselves in their terminal.
 
 ## Quick Start
 
