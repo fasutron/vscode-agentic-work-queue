@@ -179,18 +179,18 @@ async function setupAgentCommands() {
 }
 
 function printIntegrationPrompt(agentChoice) {
-  console.log(`\n--- Agent Integration ---\n`);
   console.log(`  ${color.green('✓')} WQ_CONTEXT.md installed at documents/wq-system/WQ_CONTEXT.md`);
 
   if (agentChoice) {
     const cfg = AGENT_CONFIGS[agentChoice];
-    console.log(`  ${color.green('✓')} Command files (wq.md, wl.md) installed at ${cfg.dir}/\n`);
-  } else {
-    console.log('');
+    console.log(`  ${color.green('✓')} Command files (wq.md, wl.md) installed at ${cfg.dir}/`);
   }
 
-  console.log(`  ${color.brightYellow('→ Paste this to your coding agent to complete setup:')}\n`);
-  console.log(`  ${color.dim('---')}`);
+  console.log('');
+  console.log(color.bold(`========================================`));
+  console.log(color.bold(`  PASTE THIS TO YOUR CODING AGENT:`));
+  console.log(color.bold(`========================================`));
+  console.log('');
   console.log(`  The Agentic Work Queue has been installed in this project.`);
   console.log(`  Read documents/wq-system/WQ_CONTEXT.md for full context (CLI commands,`);
   console.log(`  status-folder mappings, conventions). Then insert that context into the`);
@@ -202,7 +202,8 @@ function printIntegrationPrompt(agentChoice) {
     console.log(`  to your agent's command directory if it supports custom commands.`);
   }
 
-  console.log(`  ${color.dim('---')}`);
+  console.log('');
+  console.log(color.bold(`========================================`));
   console.log('');
 }
 
@@ -442,10 +443,6 @@ async function main() {
     await installExtension();
   }
 
-  if (!installOnly && !noAgents) {
-    printIntegrationPrompt(agentChoice);
-  }
-
   console.log(color.bold(`--- Next Steps ---\n`));
   if (!installOnly) {
     console.log(`  ${color.brightGreen('1.')} Create your first work item:`);
@@ -462,6 +459,10 @@ async function main() {
     console.log(color.dim(`  To update later: git pull this repo, then run:`));
     console.log(color.dim(`  node ${path.relative(targetRoot, path.join(sourceRoot, 'setup.js'))} --update ${targetRoot === process.cwd() ? '' : targetRoot}`));
     console.log('');
+  }
+
+  if (!installOnly && !noAgents) {
+    printIntegrationPrompt(agentChoice);
   }
 }
 
