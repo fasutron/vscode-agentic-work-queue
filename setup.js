@@ -77,9 +77,9 @@ function runCmd(cmd, label) {
 
 // Agent command directory mappings
 const AGENT_CONFIGS = {
-  claude:  { name: 'Claude Code',    dir: '.claude/commands',  detect: '.claude' },
-  copilot: { name: 'GitHub Copilot', dir: '.github/prompts',   detect: '.github/copilot-instructions.md' },
-  codex:   { name: 'OpenAI Codex',   dir: '.agents/skills',    detect: '.agents' },
+  claude:  { name: 'Claude Code',    dir: '.claude/commands',  detect: '.claude',                          instrFile: null },
+  copilot: { name: 'GitHub Copilot', dir: '.github/prompts',   detect: '.github/copilot-instructions.md',  instrFile: '.github/copilot-instructions.md' },
+  codex:   { name: 'OpenAI Codex',   dir: '.agents/skills',    detect: '.agents',                          instrFile: null },
 };
 
 // Source command files (relative to sourceRoot)
@@ -121,6 +121,86 @@ function copyCommandFiles(agentKey) {
   console.log(`  ${color.green('✓')} Command files installed for ${cfg.name} at ${cfg.dir}/`);
 }
 
+const WQ_POINTER_MARKER = '## Agentic Work Queue';
+
+const WQ_POINTER_BLOCK = `${WQ_POINTER_MARKER}
+
+This project uses the Agentic Work Queue (WQ) system for task management.
+
+- Full CLI reference and conventions: documents/wq-system/WQ_CONTEXT.md
+- WQ command skill: {commandDir}/wq.md
+- Worklist (WL) command skill: {commandDir}/wl.md
+
+When the user references "WQ" items, statuses, or tracks, read WQ_CONTEXT.md.
+When the user says "WL" or "worklist", read the WL skill file.
+Run CLI commands via: node documents/wq-system/wq-cli.js <command>`;
+
+/**
+ * Append a short WQ pointer to an agent's instructions file.
+ * Returns true if the pointer was written, false if skipped or already present.
+ */
+function appendAgentPointer(instrPath, commandDir) {
+  const block = WQ_POINTER_BLOCK.replace(/\{commandDir\}/g, commandDir);
+  const section = `\n\n${block}\n`;
+
+  const dir = path.dirname(instrPath);
+  fs.mkdirSync(dir, { recursive: true });
+
+  if (fs.existsSync(instrPath)) {
+    const existing = fs.readFileSync(instrPath, 'utf-8');
+    if (existing.includes(WQ_POINTER_MARKER)) {
+      if (updateMode) {
+        const before = existing.split(WQ_POINTER_MARKER)[0].trimEnd();
+        fs.writeFileSync(instrPath, before + section);
+        console.log(`  ${color.green('✓')} Updated WQ pointer in ${path.relative(targetRoot, instrPath)}`);
+        return true;
+      }
+      console.log(`  Exists:  ${path.relative(targetRoot, instrPath)} (WQ pointer already present)`);
+      return false;
+    }
+    fs.appendFileSync(instrPath, section);
+    console.log(`  ${color.green('✓')} Appended WQ pointer to ${path.relative(targetRoot, instrPath)}`);
+    return true;
+  }
+
+  fs.writeFileSync(instrPath, block + '\n');
+  console.log(`  ${color.green('✓')} Created ${path.relative(targetRoot, instrPath)} with WQ pointer`);
+  return true;
+}
+
+async function offerAgentPointer(agentKey) {
+  const cfg = AGENT_CONFIGS[agentKey];
+  if (!cfg || !cfg.instrFile) return;
+
+  const instrPath = path.join(targetRoot, cfg.instrFile);
+  const relPath = cfg.instrFile;
+
+  // In update mode, silently update the pointer
+  if (updateMode) {
+    appendAgentPointer(instrPath, cfg.dir);
+    return;
+  }
+
+  // Check if pointer already exists
+  if (fs.existsSync(instrPath)) {
+    const existing = fs.readFileSync(instrPath, 'utf-8');
+    if (existing.includes(WQ_POINTER_MARKER)) {
+      console.log(`  Exists:  ${relPath} (WQ pointer already present)`);
+      return;
+    }
+  }
+
+  console.log('');
+  console.log(`  ${cfg.name} reads ${color.cyan(relPath)} for project context.`);
+  console.log(`  We can append a short WQ reference pointer (6 lines) to this file.`);
+  const answer = await ask(`  Auto-append WQ pointer to ${relPath}? [Y/n]: `);
+  if (answer.toLowerCase() === 'n') {
+    console.log(`  Skipped. You can manually add the WQ pointer later.`);
+    return;
+  }
+  appendAgentPointer(instrPath, cfg.dir);
+}
+
 async function setupAgentCommands() {
   console.log(`\n--- Agent Commands ---\n`);
 
@@ -143,9 +223,12 @@ async function setupAgentCommands() {
     }
     for (const agent of detected) {
       copyCommandFiles(agent);
+      await offerAgentPointer(agent);
     }
     return detected[0]; // return primary for prompt logic
   }
+
+  let agentChoice = null;
 
   // Auto-detect
   if (detected.length > 0) {
@@ -155,33 +238,41 @@ async function setupAgentCommands() {
     if (choice.toLowerCase() !== 'n') {
       for (const agent of detected) {
         copyCommandFiles(agent);
+        await offerAgentPointer(agent);
       }
-      return detected[0];
+      agentChoice = detected[0];
     }
   }
 
-  // Manual selection
-  console.log(`  Which coding agent do you use?\n`);
-  console.log(`    [1] Claude Code    ${color.dim('→ .claude/commands/')}`);
-  console.log(`    [2] GitHub Copilot ${color.dim('→ .github/prompts/')}`);
-  console.log(`    [3] OpenAI Codex   ${color.dim('→ .agents/skills/')}`);
-  console.log(`    [4] Other / Skip`);
+  // Manual selection (if nothing auto-detected or user declined)
+  if (!agentChoice) {
+    console.log(`  Which coding agent do you use?\n`);
+    console.log(`    [1] Claude Code    ${color.dim('→ .claude/commands/')}`);
+    console.log(`    [2] GitHub Copilot ${color.dim('→ .github/prompts/')}`);
+    console.log(`    [3] OpenAI Codex   ${color.dim('→ .agents/skills/')}`);
+    console.log(`    [4] Other / Skip`);
 
-  const choice = await ask(`\n  Choice [1/2/3/4]: `);
+    const choice = await ask(`\n  Choice [1/2/3/4]: `);
 
-  if (choice === '1') {
-    copyCommandFiles('claude');
-    return 'claude';
-  } else if (choice === '2') {
-    copyCommandFiles('copilot');
-    return 'copilot';
-  } else if (choice === '3') {
-    copyCommandFiles('codex');
-    return 'codex';
+    if (choice === '1') {
+      copyCommandFiles('claude');
+      agentChoice = 'claude';
+    } else if (choice === '2') {
+      copyCommandFiles('copilot');
+      agentChoice = 'copilot';
+    } else if (choice === '3') {
+      copyCommandFiles('codex');
+      agentChoice = 'codex';
+    } else {
+      console.log(`\n  Skipping agent command install.`);
+    }
+
+    if (agentChoice) {
+      await offerAgentPointer(agentChoice);
+    }
   }
 
-  console.log(`\n  Skipping agent command install.`);
-  return null;
+  return agentChoice;
 }
 
 function printIntegrationPrompt(agentChoice) {
@@ -201,11 +292,13 @@ function printIntegrationPrompt(agentChoice) {
   console.log(`  Read documents/wq-system/WQ_CONTEXT.md for full context (CLI commands,`);
   console.log(`  status-folder mappings, conventions).`);
 
-  // Agent-specific persistent file instructions
+  // Agent-specific persistent file instructions (inside paste block)
   if (agentChoice === 'claude') {
     console.log(`  Append the WQ_CONTEXT.md content to your CLAUDE.md file.`);
   } else if (agentChoice === 'copilot') {
-    console.log(`  Append the WQ_CONTEXT.md content to .github/copilot-instructions.md.`);
+    // Pointer was already appended to copilot-instructions.md (or user was offered).
+    // Copilot reads that file automatically, so no manual step needed.
+    // The paste prompt just tells the agent the system is installed.
   } else if (agentChoice === 'codex') {
     console.log(`  Append the WQ_CONTEXT.md content to your AGENTS.md file.`);
   } else {

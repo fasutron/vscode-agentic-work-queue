@@ -5,7 +5,7 @@ A VS Code extension + CLI system for tracking work items, specs, and session wor
 ## Features
 
 - **Sidebar tree views** — Browse work queue items grouped by phase, status, track, or agent-readiness grade
-- **Kanban board** — Drag-and-drop webview board with detail panel, dependency graph, and dashboard
+- **Webview panel** — Dashboard, list view, dependency graph, and settings tabs with detail panel overlay
 - **Worklist management** — View, add, edit, reorder, and check off tasks from `*WORKLIST*.md` files directly in the detail panel
 - **Testing tab** — Tri-state test checklist (pending/pass/fail) with drag-and-drop reordering, progress tracking, and bug filing from failed tests
 - **CLI tool** — `wq-cli.js` for CRUD operations, status transitions with auto-file-moving, and dependency tracking
@@ -30,11 +30,12 @@ Where `/tmp/agentic-work-queue-temp` is wherever the agent cloned the repo. The 
 
 ### Option A: Use the setup script (recommended)
 
-The setup script scaffolds your project structure and installs the extension in one step:
+The setup script scaffolds your project structure and installs the extension in one step.
+Clone the extension repo to a **temp directory** (not inside your project):
 
 ```bash
-git clone https://github.com/fasutron/vscode-agentic-work-queue.git
-cd vscode-agentic-work-queue
+git clone https://github.com/fasutron/vscode-agentic-work-queue.git /tmp/agentic-wq
+cd /tmp/agentic-wq
 node setup.js /path/to/your-project
 ```
 
@@ -168,7 +169,11 @@ All settings are stored in `work_queue.json` alongside your data.
 
 The setup script copies `WQ_CONTEXT.md` into your project at `documents/wq-system/WQ_CONTEXT.md`. This file contains the full WQ system reference (CLI commands, status-folder mappings, conventions).
 
-After setup, the installer prints a prompt you can paste to your coding agent. The agent reads `WQ_CONTEXT.md` and inserts the context into whatever persistent file it uses (CLAUDE.md, .github/copilot-instructions.md, .cursorrules, etc.).
+After setup, the installer prints a prompt you can paste to your coding agent. The agent reads `WQ_CONTEXT.md` and inserts the context into whatever persistent file it uses (CLAUDE.md, AGENTS.md, etc.).
+
+### GitHub Copilot
+
+For Copilot, the installer offers to auto-append a short WQ pointer (6 lines) to `.github/copilot-instructions.md`. This pointer tells Copilot where to find the full CLI reference and skill files on demand, without bloating the instructions file. You can decline and add the pointer manually if you prefer to control the file structure.
 
 ### Talking to Your Agent
 
