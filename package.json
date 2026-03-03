@@ -3,7 +3,12 @@
   "displayName": "Agentic Work Queue",
   "description": "Work queue sidebar for agentic project management",
   "version": "0.10.3",
-  "publisher": "purr-lms",
+  "publisher": "fasutron",
+  "author": {
+    "name": "fasutron",
+    "url": "https://github.com/fasutron"
+  },
+  "homepage": "https://github.com/fasutron/vscode-agentic-work-queue",
   "engines": {
     "vscode": "^1.85.0"
   },
