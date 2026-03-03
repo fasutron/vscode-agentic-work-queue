@@ -74,4 +74,5 @@ export type WebviewToExtensionMessage =
   | { type: 'saveWorklistTasks'; data: { wqId: string; sections: { heading: string; tasks: WorklistTaskView[] }[] } }
   | { type: 'requestTestPlanDetail'; data: { wqId: string } }
   | { type: 'saveTestPlanTests'; data: { wqId: string; sections: { heading: string; tests: TestItemView[] }[] } }
-  | { type: 'createBugFromTest'; data: { wqId: string; testText: string } };
+  | { type: 'createBugFromTest'; data: { wqId: string; testText: string } }
+  | { type: 'createItem'; data: { title: string; track: string; phase: string } };

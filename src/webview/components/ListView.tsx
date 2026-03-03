@@ -4,6 +4,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { WQItem, WQSettings } from '../../models/WQItem';
 import type { ListFilter } from '../App';
+import { postToExtension } from '../hooks/useExtensionState';
 
 interface Props {
   items: WQItem[];
@@ -20,6 +21,10 @@ export default function ListView({ items, settings, onItemClick, presetFilter }:
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filters, setFilters] = useState({ status: '', track: '', phase: '', search: '' });
   const [hideDone, setHideDone] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newTrack, setNewTrack] = useState('');
+  const [newPhase, setNewPhase] = useState('');
 
   // Apply preset filter from Dashboard when it changes
   useEffect(() => {
@@ -82,6 +87,15 @@ export default function ListView({ items, settings, onItemClick, presetFilter }:
 
   const hasFilters = filters.status || filters.track || filters.phase || filters.search;
 
+  const handleCreate = () => {
+    if (!newTitle.trim() || !newTrack || !newPhase) return;
+    postToExtension({ type: 'createItem', data: { title: newTitle.trim(), track: newTrack, phase: newPhase } });
+    setNewTitle('');
+    setNewTrack('');
+    setNewPhase('');
+    setShowCreate(false);
+  };
+
   return (
     <div>
       {/* Filter bar */}
@@ -127,7 +141,43 @@ export default function ListView({ items, settings, onItemClick, presetFilter }:
           Hide done
         </label>
         <span className="filter-count">{filteredItems.length} of {items.length}</span>
+        <button
+          className="clear-btn"
+          style={{ marginLeft: 'auto', fontWeight: 600 }}
+          onClick={() => setShowCreate(!showCreate)}
+          title="Create new item"
+        >+</button>
       </div>
+
+      {/* Inline create form */}
+      {showCreate && (
+        <div className="filter-bar" style={{ gap: 6, paddingTop: 0 }}>
+          <input
+            className="filter-input"
+            type="text"
+            placeholder="Title"
+            value={newTitle}
+            onChange={e => setNewTitle(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            autoFocus
+            style={{ flex: 2 }}
+          />
+          <select className="filter-select" value={newTrack} onChange={e => setNewTrack(e.target.value)}>
+            <option value="">Track...</option>
+            {trackEntries.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+          </select>
+          <select className="filter-select" value={newPhase} onChange={e => setNewPhase(e.target.value)}>
+            <option value="">Phase...</option>
+            {phaseEntries.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+          </select>
+          <button
+            className="clear-btn"
+            onClick={handleCreate}
+            disabled={!newTitle.trim() || !newTrack || !newPhase}
+            title="Create"
+          >Create</button>
+        </div>
+      )}
 
       {/* Table */}
       <div style={{ overflowX: 'auto' }}>

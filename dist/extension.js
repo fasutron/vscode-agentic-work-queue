@@ -52,18 +52,16 @@ var DEFAULT_SETTINGS = {
     { id: "archive", label: "Archive", system: true, folder: "3-completed", color: "#5c6370" }
   ],
   phases: [
-    { id: "pre-beta", label: "Pre-Beta", color: "#e5c07b" },
-    { id: "beta", label: "Beta", color: "#61afef" },
-    { id: "post-beta", label: "Post-Beta", color: "#9ca3af" },
+    { id: "planning", label: "Planning", color: "#e5c07b" },
+    { id: "development", label: "Development", color: "#61afef" },
+    { id: "testing", label: "Testing", color: "#9ca3af" },
     { id: "production", label: "Production", color: "#98c379" }
   ],
   tracks: [
-    { id: "player", label: "Player", color: "#3b82f6" },
-    { id: "coach", label: "Coach", color: "#22c55e" },
-    { id: "quiz", label: "Quiz", color: "#a855f7" },
+    { id: "frontend", label: "Frontend", color: "#3b82f6" },
+    { id: "backend", label: "Backend", color: "#22c55e" },
     { id: "infra", label: "Infra", color: "#f97316" },
-    { id: "platform", label: "Platform", color: "#6b7280" },
-    { id: "production", label: "Production", color: "#ef4444" }
+    { id: "docs", label: "Docs", color: "#a855f7" }
   ],
   transitions: {
     intake: ["ready", "active"],
@@ -395,6 +393,7 @@ var WQDataService = class {
   }
   /**
    * Write updated settings back to work_queue.json.
+   * Returns true on success, false on failure.
    * The file watcher will trigger a reload automatically.
    */
   saveSettings(settings) {
@@ -406,8 +405,10 @@ var WQDataService = class {
       wqFile.lastModified = (/* @__PURE__ */ new Date()).toISOString();
       fs.writeFileSync(wqPath, JSON.stringify(wqFile, null, 2));
       this.settings = settings;
+      return true;
     } catch (e) {
       console.error("Failed to save settings:", e);
+      return false;
     }
   }
   getItemById(id) {
@@ -748,8 +749,29 @@ var ClaudeCodeService = class {
       });
     });
   }
+  /**
+   * Create a new WQ item via CLI.
+   */
+  async createItem(title, track, phase) {
+    return new Promise((resolve) => {
+      (0, import_child_process.execFile)("node", [this.cliPath, "create", title, `--track=${track}`, `--phase=${phase}`], {
+        cwd: this.workspaceRoot,
+        timeout: 15e3
+      }, (error, stdout, stderr) => {
+        if (error) {
+          const msg = stderr || error.message;
+          vscode2.window.showErrorMessage(`WQ create failed: ${msg}`);
+          this.outputChannel.appendLine(`[CLI ERROR] create: ${msg}`);
+          resolve(false);
+        } else {
+          this.outputChannel.appendLine(`[CLI] create: ${stdout.trim()}`);
+          resolve(true);
+        }
+      });
+    });
+  }
   async delegateTriage(phase) {
-    const filter = phase || "pre-beta";
+    const filter = phase || "planning";
     const prompt = `/project:wq triage ${filter}`;
     await this.sendViaCCClipboard(prompt, `Triage ${filter}`);
   }
@@ -1283,9 +1305,14 @@ var WQWebviewProvider = class {
         break;
       }
       case "saveSettings": {
-        this.dataService.saveSettings(msg.data.settings);
-        this.postMessage({ type: "toast", data: { message: "Settings saved" } });
-        setTimeout(() => this.pushDataUpdate(), 200);
+        const saved = this.dataService.saveSettings(msg.data.settings);
+        if (saved) {
+          this.postMessage({ type: "toast", data: { message: "Settings saved" } });
+          setTimeout(() => this.pushDataUpdate(), 200);
+        } else {
+          this.postMessage({ type: "toast", data: { message: "Failed to save settings" } });
+          this.pushDataUpdate();
+        }
         break;
       }
       case "requestWorklistDetail": {
@@ -1385,6 +1412,16 @@ var WQWebviewProvider = class {
         } else {
           vscode6.window.showInformationMessage(message);
         }
+        break;
+      }
+      case "createItem": {
+        const { title, track, phase } = msg.data;
+        this.claudeService.createItem(title, track, phase).then((success) => {
+          if (success) {
+            this.postMessage({ type: "toast", data: { message: `Created: ${title}` } });
+            setTimeout(() => this.pushDataUpdate(), 300);
+          }
+        });
         break;
       }
     }

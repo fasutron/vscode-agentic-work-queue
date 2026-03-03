@@ -28,6 +28,7 @@ export interface WQItem {
   blocks: string[];
   createdAt: string;
   updatedAt: string;
+  statusHistory?: { from: string; to: string; at: string }[];
   notes?: string;
 }
 

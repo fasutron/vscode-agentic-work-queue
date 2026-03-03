@@ -77,8 +77,9 @@ function runCmd(cmd, label) {
 
 // Agent command directory mappings
 const AGENT_CONFIGS = {
-  claude: { name: 'Claude Code', dir: '.claude/commands', detect: '.claude' },
-  codex:  { name: 'OpenAI Codex', dir: '.agents/skills', detect: '.agents' },
+  claude:  { name: 'Claude Code',    dir: '.claude/commands',  detect: '.claude' },
+  copilot: { name: 'GitHub Copilot', dir: '.github/prompts',   detect: '.github/copilot-instructions.md' },
+  codex:   { name: 'OpenAI Codex',   dir: '.agents/skills',    detect: '.agents' },
 };
 
 // Source command files (relative to sourceRoot)
@@ -161,16 +162,20 @@ async function setupAgentCommands() {
 
   // Manual selection
   console.log(`  Which coding agent do you use?\n`);
-  console.log(`    [1] Claude Code  ${color.dim('→ .claude/commands/')}`);
-  console.log(`    [2] OpenAI Codex ${color.dim('→ .agents/skills/')}`);
-  console.log(`    [3] Other / Skip`);
+  console.log(`    [1] Claude Code    ${color.dim('→ .claude/commands/')}`);
+  console.log(`    [2] GitHub Copilot ${color.dim('→ .github/prompts/')}`);
+  console.log(`    [3] OpenAI Codex   ${color.dim('→ .agents/skills/')}`);
+  console.log(`    [4] Other / Skip`);
 
-  const choice = await ask(`\n  Choice [1/2/3]: `);
+  const choice = await ask(`\n  Choice [1/2/3/4]: `);
 
   if (choice === '1') {
     copyCommandFiles('claude');
     return 'claude';
   } else if (choice === '2') {
+    copyCommandFiles('copilot');
+    return 'copilot';
+  } else if (choice === '3') {
     copyCommandFiles('codex');
     return 'codex';
   }
@@ -194,9 +199,20 @@ function printIntegrationPrompt(agentChoice) {
   console.log('');
   console.log(`  The Agentic Work Queue has been installed in this project.`);
   console.log(`  Read documents/wq-system/WQ_CONTEXT.md for full context (CLI commands,`);
-  console.log(`  status-folder mappings, conventions). Then insert that context into the`);
-  console.log(`  appropriate persistent file for your environment (CLAUDE.md,`);
-  console.log(`  .github/copilot-instructions.md, .cursorrules, etc.)`);
+  console.log(`  status-folder mappings, conventions).`);
+
+  // Agent-specific persistent file instructions
+  if (agentChoice === 'claude') {
+    console.log(`  Append the WQ_CONTEXT.md content to your CLAUDE.md file.`);
+  } else if (agentChoice === 'copilot') {
+    console.log(`  Append the WQ_CONTEXT.md content to .github/copilot-instructions.md.`);
+  } else if (agentChoice === 'codex') {
+    console.log(`  Append the WQ_CONTEXT.md content to your AGENTS.md file.`);
+  } else {
+    console.log(`  Insert that context into the appropriate persistent file for`);
+    console.log(`  your environment (CLAUDE.md, .github/copilot-instructions.md,`);
+    console.log(`  .cursorrules, etc.)`);
+  }
 
   if (!agentChoice) {
     console.log(`  Command files (wq.md, wl.md) are in documents/wq-system/ — copy them`);
@@ -205,6 +221,8 @@ function printIntegrationPrompt(agentChoice) {
 
   console.log('');
   console.log(color.bold(`========================================`));
+  console.log('');
+  console.log(color.brightYellow(`  ↑↑↑  Scroll up and paste the above into your coding agent  ↑↑↑`));
   console.log('');
 }
 

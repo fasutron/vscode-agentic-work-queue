@@ -155,10 +155,16 @@ export class WQWebviewProvider implements vscode.Disposable {
       }
 
       case 'saveSettings': {
-        this.dataService.saveSettings(msg.data.settings);
-        this.postMessage({ type: 'toast', data: { message: 'Settings saved' } });
-        // File watcher will trigger a full reload, but push immediately for snappy UI
-        setTimeout(() => this.pushDataUpdate(), 200);
+        const saved = this.dataService.saveSettings(msg.data.settings);
+        if (saved) {
+          this.postMessage({ type: 'toast', data: { message: 'Settings saved' } });
+          // File watcher will trigger a full reload, but push immediately for snappy UI
+          setTimeout(() => this.pushDataUpdate(), 200);
+        } else {
+          this.postMessage({ type: 'toast', data: { message: 'Failed to save settings' } });
+          // Push current data back to revert the webview's optimistic state
+          this.pushDataUpdate();
+        }
         break;
       }
 
@@ -262,6 +268,17 @@ export class WQWebviewProvider implements vscode.Disposable {
         if (kind === 'error') { vscode.window.showErrorMessage(message); }
         else if (kind === 'warning') { vscode.window.showWarningMessage(message); }
         else { vscode.window.showInformationMessage(message); }
+        break;
+      }
+
+      case 'createItem': {
+        const { title, track, phase } = msg.data;
+        this.claudeService.createItem(title, track, phase).then(success => {
+          if (success) {
+            this.postMessage({ type: 'toast', data: { message: `Created: ${title}` } });
+            setTimeout(() => this.pushDataUpdate(), 300);
+          }
+        });
         break;
       }
     }

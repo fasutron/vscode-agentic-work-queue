@@ -3,7 +3,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import type { WQItem } from '../models/WQItem';
-import { useExtensionState } from './hooks/useExtensionState';
+import { useExtensionState, postToExtension } from './hooks/useExtensionState';
 import Dashboard from './components/Dashboard';
 import ListView from './components/ListView';
 import DetailPanel from './components/DetailPanel';
@@ -110,9 +110,16 @@ export default function App() {
           Graph
         </button>
         <button
+          className="tab-btn"
+          onClick={() => postToExtension({ type: 'ready' })}
+          style={{ marginLeft: 'auto' }}
+          title="Refresh data"
+        >
+          {'\u21BB'}
+        </button>
+        <button
           className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
           onClick={() => setActiveTab('settings')}
-          style={{ marginLeft: 'auto' }}
         >
           {'\u2699'} Settings
         </button>

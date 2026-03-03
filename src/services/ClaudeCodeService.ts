@@ -85,8 +85,30 @@ export class ClaudeCodeService implements vscode.Disposable {
     });
   }
 
+  /**
+   * Create a new WQ item via CLI.
+   */
+  async createItem(title: string, track: string, phase: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      execFile('node', [this.cliPath, 'create', title, `--track=${track}`, `--phase=${phase}`], {
+        cwd: this.workspaceRoot,
+        timeout: 15000,
+      }, (error, stdout, stderr) => {
+        if (error) {
+          const msg = stderr || error.message;
+          vscode.window.showErrorMessage(`WQ create failed: ${msg}`);
+          this.outputChannel.appendLine(`[CLI ERROR] create: ${msg}`);
+          resolve(false);
+        } else {
+          this.outputChannel.appendLine(`[CLI] create: ${stdout.trim()}`);
+          resolve(true);
+        }
+      });
+    });
+  }
+
   async delegateTriage(phase?: string): Promise<void> {
-    const filter = phase || 'pre-beta';
+    const filter = phase || 'planning';
     const prompt = `/project:wq triage ${filter}`;
     await this.sendViaCCClipboard(prompt, `Triage ${filter}`);
   }

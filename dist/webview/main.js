@@ -32325,18 +32325,16 @@
       { id: "archive", label: "Archive", system: true, folder: "3-completed", color: "#5c6370" }
     ],
     phases: [
-      { id: "pre-beta", label: "Pre-Beta", color: "#e5c07b" },
-      { id: "beta", label: "Beta", color: "#61afef" },
-      { id: "post-beta", label: "Post-Beta", color: "#9ca3af" },
+      { id: "planning", label: "Planning", color: "#e5c07b" },
+      { id: "development", label: "Development", color: "#61afef" },
+      { id: "testing", label: "Testing", color: "#9ca3af" },
       { id: "production", label: "Production", color: "#98c379" }
     ],
     tracks: [
-      { id: "player", label: "Player", color: "#3b82f6" },
-      { id: "coach", label: "Coach", color: "#22c55e" },
-      { id: "quiz", label: "Quiz", color: "#a855f7" },
+      { id: "frontend", label: "Frontend", color: "#3b82f6" },
+      { id: "backend", label: "Backend", color: "#22c55e" },
       { id: "infra", label: "Infra", color: "#f97316" },
-      { id: "platform", label: "Platform", color: "#6b7280" },
-      { id: "production", label: "Production", color: "#ef4444" }
+      { id: "docs", label: "Docs", color: "#a855f7" }
     ],
     transitions: {
       intake: ["ready", "active"],
@@ -32550,6 +32548,10 @@
     const [sortDir, setSortDir] = (0, import_react3.useState)("asc");
     const [filters, setFilters] = (0, import_react3.useState)({ status: "", track: "", phase: "", search: "" });
     const [hideDone, setHideDone] = (0, import_react3.useState)(true);
+    const [showCreate, setShowCreate] = (0, import_react3.useState)(false);
+    const [newTitle, setNewTitle] = (0, import_react3.useState)("");
+    const [newTrack, setNewTrack] = (0, import_react3.useState)("");
+    const [newPhase, setNewPhase] = (0, import_react3.useState)("");
     (0, import_react3.useEffect)(() => {
       if (presetFilter) {
         setFilters({
@@ -32615,6 +32617,15 @@
       }
     };
     const hasFilters = filters.status || filters.track || filters.phase || filters.search;
+    const handleCreate = () => {
+      if (!newTitle.trim() || !newTrack || !newPhase)
+        return;
+      postToExtension({ type: "createItem", data: { title: newTitle.trim(), track: newTrack, phase: newPhase } });
+      setNewTitle("");
+      setNewTrack("");
+      setNewPhase("");
+      setShowCreate(false);
+    };
     return /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { children: [
       /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "filter-bar", children: [
         /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
@@ -32672,7 +32683,50 @@
           filteredItems.length,
           " of ",
           items.length
-        ] })
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+          "button",
+          {
+            className: "clear-btn",
+            style: { marginLeft: "auto", fontWeight: 600 },
+            onClick: () => setShowCreate(!showCreate),
+            title: "Create new item",
+            children: "+"
+          }
+        )
+      ] }),
+      showCreate && /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { className: "filter-bar", style: { gap: 6, paddingTop: 0 }, children: [
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+          "input",
+          {
+            className: "filter-input",
+            type: "text",
+            placeholder: "Title",
+            value: newTitle,
+            onChange: (e) => setNewTitle(e.target.value),
+            onKeyDown: (e) => e.key === "Enter" && handleCreate(),
+            autoFocus: true,
+            style: { flex: 2 }
+          }
+        ),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("select", { className: "filter-select", value: newTrack, onChange: (e) => setNewTrack(e.target.value), children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "", children: "Track..." }),
+          trackEntries.map((t) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: t.id, children: t.label }, t.id))
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("select", { className: "filter-select", value: newPhase, onChange: (e) => setNewPhase(e.target.value), children: [
+          /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: "", children: "Phase..." }),
+          phaseEntries.map((p) => /* @__PURE__ */ (0, import_jsx_runtime2.jsx)("option", { value: p.id, children: p.label }, p.id))
+        ] }),
+        /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+          "button",
+          {
+            className: "clear-btn",
+            onClick: handleCreate,
+            disabled: !newTitle.trim() || !newTrack || !newPhase,
+            title: "Create",
+            children: "Create"
+          }
+        )
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("div", { style: { overflowX: "auto" }, children: [
         /* @__PURE__ */ (0, import_jsx_runtime2.jsxs)("table", { className: "list-table", children: [
@@ -46034,12 +46088,21 @@
             children: "Graph"
           }
         ),
+        /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          "button",
+          {
+            className: "tab-btn",
+            onClick: () => postToExtension({ type: "ready" }),
+            style: { marginLeft: "auto" },
+            title: "Refresh data",
+            children: "\u21BB"
+          }
+        ),
         /* @__PURE__ */ (0, import_jsx_runtime7.jsxs)(
           "button",
           {
             className: `tab-btn ${activeTab === "settings" ? "active" : ""}`,
             onClick: () => setActiveTab("settings"),
-            style: { marginLeft: "auto" },
             children: [
               "\u2699",
               " Settings"

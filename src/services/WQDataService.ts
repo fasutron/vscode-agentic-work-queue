@@ -55,9 +55,10 @@ export class WQDataService {
 
   /**
    * Write updated settings back to work_queue.json.
+   * Returns true on success, false on failure.
    * The file watcher will trigger a reload automatically.
    */
-  saveSettings(settings: WQSettings): void {
+  saveSettings(settings: WQSettings): boolean {
     const wqPath = path.join(this.handoffsDir, 'work_queue.json');
     try {
       const raw = fs.readFileSync(wqPath, 'utf-8');
@@ -66,8 +67,10 @@ export class WQDataService {
       wqFile.lastModified = new Date().toISOString();
       fs.writeFileSync(wqPath, JSON.stringify(wqFile, null, 2));
       this.settings = settings;
+      return true;
     } catch (e) {
       console.error('Failed to save settings:', e);
+      return false;
     }
   }
 

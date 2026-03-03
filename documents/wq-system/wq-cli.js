@@ -265,6 +265,8 @@ function cmdStatus(args) {
 
   item.status = newStatus;
   item.updatedAt = new Date().toISOString();
+  if (!item.statusHistory) { item.statusHistory = []; }
+  item.statusHistory.push({ from: oldStatus, to: newStatus, at: item.updatedAt });
   saveWQ(wq);
 
   console.log(`\n✅ ${id} status: ${oldStatus} → ${newStatus}`);
@@ -451,6 +453,13 @@ function cmdView(args) {
   }
 
   console.log(`\n**Created**: ${item.createdAt?.slice(0, 10)} | **Updated**: ${item.updatedAt?.slice(0, 10)}`);
+
+  if (item.statusHistory && item.statusHistory.length > 0) {
+    console.log('\n**Status History**:');
+    for (const h of item.statusHistory) {
+      console.log(`  ${h.at.slice(0, 10)} ${h.from} → ${h.to}`);
+    }
+  }
 }
 
 function cmdList(args) {
