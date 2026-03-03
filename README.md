@@ -97,7 +97,7 @@ your-project/
 
 ## CLI Usage
 
-The CLI requires only Node.js — no external packages.
+The CLI requires only Node.js — no external packages. Your agent will have access to all of these commands (see Agent Integration below) through the WQ and WL commands that are installed with this project.
 
 ```bash
 # Create a work item
