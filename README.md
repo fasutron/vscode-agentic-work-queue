@@ -229,6 +229,10 @@ npx vsce package         # Package as .vsix
 - **VS Code** 1.85.0 or later
 - **Node.js** (for the CLI tool and building from source)
 
+## Feedback & Issues
+
+Found a bug or have a feature request? Please [open an issue](https://github.com/fasutron/vscode-agentic-work-queue/issues) on GitHub.
+
 ## License
 
 MIT
