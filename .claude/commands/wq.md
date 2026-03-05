@@ -26,7 +26,7 @@ This tool and its companion files can be copied to other projects as a self-cont
 For all WQ operations, execute the CLI tool with the appropriate command:
 
 ```bash
-node documents/wq-system/wq-cli.js <command> [args] [options]
+documents/wq-system/wq <command> [args] [options]
 ```
 
 ### Commands
@@ -50,7 +50,7 @@ node documents/wq-system/wq-cli.js <command> [args] [options]
 ## Action: CREATE
 
 ```bash
-node documents/wq-system/wq-cli.js create "Title" --track=<track> --phase=<phase> [options]
+documents/wq-system/wq create "Title" --track=<track> --phase=<phase> [options]
 ```
 
 ### Required
@@ -67,7 +67,7 @@ node documents/wq-system/wq-cli.js create "Title" --track=<track> --phase=<phase
 
 ### Example
 ```bash
-node documents/wq-system/wq-cli.js create "User Auth Feature" --track=frontend --phase=development --priority=5 --tags="auth,security"
+documents/wq-system/wq create "User Auth Feature" --track=frontend --phase=development --priority=5 --tags="auth,security"
 ```
 
 ---
@@ -75,7 +75,7 @@ node documents/wq-system/wq-cli.js create "User Auth Feature" --track=frontend -
 ## Action: STATUS
 
 ```bash
-node documents/wq-system/wq-cli.js status <WQ-ID> <new-status>
+documents/wq-system/wq status <WQ-ID> <new-status>
 ```
 
 ### Valid Statuses
@@ -94,7 +94,7 @@ The CLI automatically:
 
 ### Example
 ```bash
-node documents/wq-system/wq-cli.js status WQ-065 done
+documents/wq-system/wq status WQ-065 done
 ```
 
 ### Auto-Create Worklist on `active`
@@ -131,7 +131,7 @@ When changing status to `active`, **automatically create a WORKLIST file** if on
 4. Use naming convention: `<WQ-ID>_<Title_Snake_Case>_WORKLIST.md` (e.g., `WQ065_User_Auth_Feature_WORKLIST.md`)
 5. Link the worklist back to the WQ item:
 ```bash
-node documents/wq-system/wq-cli.js edit WQ-XXX --add-doc="worklist:<path-to-worklist>"
+documents/wq-system/wq edit WQ-XXX --add-doc="worklist:<path-to-worklist>"
 ```
 6. Report: "Created worklist: `<path>`"
 
@@ -168,7 +168,7 @@ After creating the worklist, also create a test plan file if one doesn't already
 4. Place in the same folder as the worklist (`documents/handoffs/2-in_progress/`)
 5. Link back to the WQ item:
 ```bash
-node documents/wq-system/wq-cli.js edit WQ-XXX --add-doc="testplan:<path-to-test-plan>"
+documents/wq-system/wq edit WQ-XXX --add-doc="testplan:<path-to-test-plan>"
 ```
 6. Report: "Created test plan: `<path>`"
 
@@ -190,7 +190,7 @@ When working on a WQ item, maintain its test plan throughout development:
 ## Action: EDIT
 
 ```bash
-node documents/wq-system/wq-cli.js edit <WQ-ID> [options]
+documents/wq-system/wq edit <WQ-ID> [options]
 ```
 
 ### Options
@@ -208,7 +208,7 @@ node documents/wq-system/wq-cli.js edit <WQ-ID> [options]
 
 ### Example
 ```bash
-node documents/wq-system/wq-cli.js edit WQ-065 --priority=3 --add-tag="urgent"
+documents/wq-system/wq edit WQ-065 --priority=3 --add-tag="urgent"
 ```
 
 ---
@@ -216,7 +216,7 @@ node documents/wq-system/wq-cli.js edit WQ-065 --priority=3 --add-tag="urgent"
 ## Action: VIEW
 
 ```bash
-node documents/wq-system/wq-cli.js view <WQ-ID>
+documents/wq-system/wq view <WQ-ID>
 ```
 
 Displays full item details including dependencies, blocks, and documents.
@@ -226,7 +226,7 @@ Displays full item details including dependencies, blocks, and documents.
 ## Action: LIST
 
 ```bash
-node documents/wq-system/wq-cli.js list [filter]
+documents/wq-system/wq list [filter]
 ```
 
 ### Filters
@@ -240,16 +240,16 @@ node documents/wq-system/wq-cli.js list [filter]
 ## Action: DEPS
 
 ```bash
-node documents/wq-system/wq-cli.js deps <WQ-ID>           # What does this item depend on?
-node documents/wq-system/wq-cli.js deps <WQ-ID> --reverse # What depends on this item?
-node documents/wq-system/wq-cli.js deps --blocked         # All items with unmet deps
+documents/wq-system/wq deps <WQ-ID>           # What does this item depend on?
+documents/wq-system/wq deps <WQ-ID> --reverse # What depends on this item?
+documents/wq-system/wq deps --blocked         # All items with unmet deps
 ```
 
 ### Examples
 ```bash
-node documents/wq-system/wq-cli.js deps WQ-065           # Show WQ-065's dependencies
-node documents/wq-system/wq-cli.js deps WQ-065 --reverse # Show what's blocked by WQ-065
-node documents/wq-system/wq-cli.js deps --blocked        # Show all blocked items
+documents/wq-system/wq deps WQ-065           # Show WQ-065's dependencies
+documents/wq-system/wq deps WQ-065 --reverse # Show what's blocked by WQ-065
+documents/wq-system/wq deps --blocked        # Show all blocked items
 ```
 
 ---
@@ -259,16 +259,16 @@ node documents/wq-system/wq-cli.js deps --blocked        # Show all blocked item
 Look up which WQ item(s) a handoff document belongs to.
 
 ```bash
-node documents/wq-system/wq-cli.js find <path-or-filename>
+documents/wq-system/wq find <path-or-filename>
 ```
 
 Accepts filename, relative path, or full path. Normalizes Windows/Unix paths.
 
 ### Examples
 ```bash
-node documents/wq-system/wq-cli.js find SPEC_Feature.md
-node documents/wq-system/wq-cli.js find 1-pending/SPEC_Feature.md
-node documents/wq-system/wq-cli.js find "documents/handoffs/1-pending/BRIEF_Feature.md"
+documents/wq-system/wq find SPEC_Feature.md
+documents/wq-system/wq find 1-pending/SPEC_Feature.md
+documents/wq-system/wq find "documents/handoffs/1-pending/BRIEF_Feature.md"
 ```
 
 ---
@@ -278,7 +278,7 @@ node documents/wq-system/wq-cli.js find "documents/handoffs/1-pending/BRIEF_Feat
 One-time cleanup to fix document paths stored in `work_queue.json`. Strips redundant `documents/handoffs/` prefixes so all paths are relative to the handoffs directory.
 
 ```bash
-node documents/wq-system/wq-cli.js normalize
+documents/wq-system/wq normalize
 ```
 
 This is **idempotent** — safe to run multiple times. Only modifies paths that have the redundant prefix.
@@ -290,7 +290,7 @@ This is **idempotent** — safe to run multiple times. Only modifies paths that 
 
 ### Example
 ```bash
-node documents/wq-system/wq-cli.js normalize
+documents/wq-system/wq normalize
 # Output: Normalized 5 document path(s).
 ```
 
@@ -310,7 +310,7 @@ Identify agent-ready items from the work queue. This is a CC reasoning task, not
 
 ### Steps
 
-1. List items using the CLI: `node documents/wq-system/wq-cli.js list [filter]`
+1. List items using the CLI: `documents/wq-system/wq list [filter]`
 2. Read the criteria file: `documents/wq-system/triage-criteria.md`
 3. For each item, evaluate against the five required criteria
 4. Score passing items (1-3) using the rubric

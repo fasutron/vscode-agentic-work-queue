@@ -68,7 +68,7 @@ The task stays within boundaries that don't require explicit permission or cross
 
 All items in the task's `dependsOn` array are status `done`.
 
-**Check:** `node documents/wq-system/wq-cli.js deps <WQ-ID>`
+**Check:** `documents/wq-system/wq deps <WQ-ID>`
 
 ---
 

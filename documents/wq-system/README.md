@@ -7,6 +7,10 @@ A portable task/feature tracking system designed for use with Claude Code sessio
 ```
 wq-system/
 ├── wq-cli.js              # CLI tool for CRUD operations
+├── wq                     # Shell wrapper (Unix)
+├── wq.cmd                 # Shell wrapper (Windows)
+├── wl                     # Shell wrapper (Unix)
+├── wl.cmd                 # Shell wrapper (Windows)
 ├── triage-criteria.md     # Agent-ready task selection rubric
 └── README.md              # This file
 ```
@@ -39,26 +43,26 @@ wq-system/
 
 ```bash
 # Create item
-node documents/wq-system/wq-cli.js create "Feature Name" --track=frontend --phase=development
+documents/wq-system/wq create "Feature Name" --track=frontend --phase=development
 
 # Change status (moves files automatically)
-node documents/wq-system/wq-cli.js status WQ-001 active
+documents/wq-system/wq status WQ-001 active
 
 # Edit item
-node documents/wq-system/wq-cli.js edit WQ-001 --priority=5 --add-tag="urgent"
+documents/wq-system/wq edit WQ-001 --priority=5 --add-tag="urgent"
 
 # View item
-node documents/wq-system/wq-cli.js view WQ-001
+documents/wq-system/wq view WQ-001
 
 # List items
-node documents/wq-system/wq-cli.js list active
-node documents/wq-system/wq-cli.js list frontend
+documents/wq-system/wq list active
+documents/wq-system/wq list frontend
 
 # Get next available ID
-node documents/wq-system/wq-cli.js next-id
+documents/wq-system/wq next-id
 
 # Help
-node documents/wq-system/wq-cli.js help
+documents/wq-system/wq help
 
 # Triage (via /project:wq skill — CC reasoning task, not a CLI command)
 # Evaluates items against agent-ready criteria in triage-criteria.md

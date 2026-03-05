@@ -100,6 +100,10 @@ your-project/
 │   │   └── work_queue.json     # work queue data
 │   └── wq-system/
 │       ├── wq-cli.js           # CLI tool (zero external deps)
+│       ├── wq                  # Shell wrapper (Unix)
+│       ├── wq.cmd              # Shell wrapper (Windows)
+│       ├── wl                  # Shell wrapper (Unix)
+│       ├── wl.cmd              # Shell wrapper (Windows)
 │       ├── triage-criteria.md  # Agent-readiness scoring rubric
 │       └── README.md           # WQ system docs
 └── .claude/
@@ -116,33 +120,33 @@ The CLI requires only Node.js — no external packages. Your agent will have acc
 
 ```bash
 # Create a work item
-node documents/wq-system/wq-cli.js create "Feature Name" --track=frontend --phase=development
+documents/wq-system/wq create "Feature Name" --track=frontend --phase=development
 
 # Change status (auto-moves handoff files between folders)
-node documents/wq-system/wq-cli.js status WQ-001 active
+documents/wq-system/wq status WQ-001 active
 
 # View item details
-node documents/wq-system/wq-cli.js view WQ-001
+documents/wq-system/wq view WQ-001
 
 # List items by filter
-node documents/wq-system/wq-cli.js list active
-node documents/wq-system/wq-cli.js list frontend
+documents/wq-system/wq list active
+documents/wq-system/wq list frontend
 
 # Edit an item
-node documents/wq-system/wq-cli.js edit WQ-001 --priority=10 --add-tag=urgent
+documents/wq-system/wq edit WQ-001 --priority=10 --add-tag=urgent
 
 # Check dependencies
-node documents/wq-system/wq-cli.js deps WQ-001
-node documents/wq-system/wq-cli.js deps --blocked
+documents/wq-system/wq deps WQ-001
+documents/wq-system/wq deps --blocked
 
 # Find which item owns a document
-node documents/wq-system/wq-cli.js find SPEC_Feature.md
+documents/wq-system/wq find SPEC_Feature.md
 
 # Normalize document paths (one-time cleanup, idempotent)
-node documents/wq-system/wq-cli.js normalize
+documents/wq-system/wq normalize
 
 # Get next available ID
-node documents/wq-system/wq-cli.js next-id
+documents/wq-system/wq next-id
 ```
 
 ## Status-Folder Mapping

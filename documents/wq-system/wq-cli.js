@@ -5,13 +5,15 @@
  * Manages work_queue.json with CRUD operations.
  * Designed to be portable across projects using the WQ system.
  *
- * Usage:
- *   node wq-cli.js create "Title" --track=frontend --phase=development
- *   node wq-cli.js status WQ-065 active
- *   node wq-cli.js edit WQ-065 --priority=5 --tags="ui,frontend"
- *   node wq-cli.js view WQ-065
- *   node wq-cli.js list [filter]
- *   node wq-cli.js next-id
+ * Usage (via wrapper scripts):
+ *   wq create "Title" --track=frontend --phase=development
+ *   wq status WQ-065 active
+ *   wq edit WQ-065 --priority=5 --tags="ui,frontend"
+ *   wq view WQ-065
+ *   wq list [filter]
+ *   wq next-id
+ *
+ * Or directly: node wq-cli.js <command> [args]
  */
 
 const fs = require('fs');

@@ -1,0 +1,5 @@
+# Shell wrappers: enforce correct line endings
+documents/wq-system/wq   text eol=lf
+documents/wq-system/wl   text eol=lf
+documents/wq-system/wq.cmd text eol=crlf
+documents/wq-system/wl.cmd text eol=crlf

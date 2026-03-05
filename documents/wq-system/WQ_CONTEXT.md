@@ -7,7 +7,7 @@ This project uses the [Agentic Work Queue](https://github.com/fasutron/vscode-ag
 All work queue operations go through the CLI — do NOT edit `work_queue.json` directly.
 
 ```bash
-node documents/wq-system/wq-cli.js <command> [args] [options]
+documents/wq-system/wq <command> [args] [options]
 ```
 
 | Command | Usage | Description |
@@ -41,6 +41,10 @@ documents/
 │   └── work_queue.json     # work queue data (use CLI, not direct edits)
 └── wq-system/
     ├── wq-cli.js           # CLI tool (zero external deps)
+    ├── wq                  # Shell wrapper (Unix)
+    ├── wq.cmd              # Shell wrapper (Windows)
+    ├── wl                  # Shell wrapper (Unix)
+    ├── wl.cmd              # Shell wrapper (Windows)
     └── triage-criteria.md  # Agent-readiness scoring rubric
 ```
 

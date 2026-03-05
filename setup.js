@@ -133,7 +133,7 @@ This project uses the Agentic Work Queue (WQ) system for task management.
 
 When the user references "WQ" items, statuses, or tracks, read WQ_CONTEXT.md.
 When the user says "WL" or "worklist", read the WL skill file.
-Run CLI commands via: node documents/wq-system/wq-cli.js <command>`;
+Run CLI commands via: documents/wq-system/wq <command> (or wq.cmd on Windows)`;
 
 /**
  * Append a short WQ pointer to an agent's instructions file.
@@ -343,6 +343,10 @@ async function scaffoldProject() {
   // Agent command files (wq.md, wl.md) are handled separately by setupAgentCommands()
   const files = [
     ['documents/wq-system/wq-cli.js', 'documents/wq-system/wq-cli.js'],
+    ['documents/wq-system/wq', 'documents/wq-system/wq'],
+    ['documents/wq-system/wq.cmd', 'documents/wq-system/wq.cmd'],
+    ['documents/wq-system/wl', 'documents/wq-system/wl'],
+    ['documents/wq-system/wl.cmd', 'documents/wq-system/wl.cmd'],
     ['documents/wq-system/WQ_CONTEXT.md', 'documents/wq-system/WQ_CONTEXT.md'],
     ['documents/wq-system/README.md', 'documents/wq-system/README.md'],
     ['documents/wq-system/triage-criteria.md', 'documents/wq-system/triage-criteria.md'],
@@ -421,6 +425,16 @@ async function scaffoldProject() {
       fs.copyFileSync(srcPath, destPath);
       console.log(`  Copied:  ${dest}`);
       created++;
+    }
+  }
+
+  // Make shell wrappers executable on Unix
+  if (process.platform !== 'win32') {
+    for (const name of ['wq', 'wl']) {
+      const wrapperPath = path.join(targetRoot, 'documents/wq-system', name);
+      if (fs.existsSync(wrapperPath)) {
+        fs.chmodSync(wrapperPath, 0o755);
+      }
     }
   }
 
@@ -579,14 +593,14 @@ async function main() {
   console.log(color.bold(`--- Next Steps ---\n`));
   if (!installOnly) {
     console.log(`  ${color.brightGreen('1.')} Create your first work item:`);
-    console.log(`     ${color.cyan('node documents/wq-system/wq-cli.js create "My Feature" --track=frontend --phase=development')}\n`);
+    console.log(`     ${color.cyan('documents/wq-system/wq create "My Feature" --track=frontend --phase=development')}\n`);
   }
   console.log(`  ${color.brightGreen(!installOnly ? '2.' : '1.')} ${color.bold('Reload VS Code')} (Ctrl+Shift+P → "Developer: Reload Window")`);
   console.log(`     Then look for "Work Queue" in the sidebar.\n`);
   console.log(`  ${color.brightGreen(!installOnly ? '3.' : '2.')} ${color.bold('Set a keyboard shortcut for the panel')} ${color.dim('(optional)')}`);
   console.log(`     Open Keyboard Shortcuts (Ctrl+K Ctrl+S), search for ${color.cyan('"WQ: Open Board"')},`);
   console.log(`     and assign your preferred key.\n`);
-  console.log(`  ${color.dim('CLI help:')} node documents/wq-system/wq-cli.js --help\n`);
+  console.log(`  ${color.dim('CLI help:')} documents/wq-system/wq help\n`);
 
   if (!updateMode) {
     console.log(color.dim(`  To update later: git pull this repo, then run:`));
