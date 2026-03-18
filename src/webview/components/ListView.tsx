@@ -52,10 +52,11 @@ export default function ListView({ items, settings, onItemClick, presetFilter }:
     if (filters.search) {
       const q = filters.search.toLowerCase();
       result = result.filter(i =>
-        i.title.toLowerCase().includes(q) ||
-        i.id.toLowerCase().includes(q) ||
+        (i.title ?? '').toLowerCase().includes(q) ||
+        (i.id ?? '').toLowerCase().includes(q) ||
         (typeof i.summary === 'string' && i.summary.toLowerCase().includes(q)) ||
-        i.tags?.some(t => t.toLowerCase().includes(q))
+        (Array.isArray(i.summary) && i.summary.some(s => s.toLowerCase().includes(q))) ||
+        i.tags?.some(t => typeof t === 'string' && t.toLowerCase().includes(q))
       );
     }
 

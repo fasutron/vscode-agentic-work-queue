@@ -138,12 +138,14 @@ export default function App() {
             />
           )}
           {activeTab === 'list' && (
-            <ListView
-              items={items}
-              settings={settings}
-              onItemClick={handleSelectItem}
-              presetFilter={presetFilter}
-            />
+            <ErrorBoundary fallback="List failed to render">
+              <ListView
+                items={items}
+                settings={settings}
+                onItemClick={handleSelectItem}
+                presetFilter={presetFilter}
+              />
+            </ErrorBoundary>
           )}
           {activeTab === 'graph' && (
             <ErrorBoundary fallback="Graph failed to render">
@@ -161,17 +163,19 @@ export default function App() {
 
         {/* Detail panel — floats over content, never scrolls with list */}
         {selected && (
-          <DetailPanel
-            item={selected}
-            allItems={items}
-            worklists={worklists}
-            testPlans={testPlans}
-            settings={settings}
-            worklistDetail={worklistDetail}
-            testPlanDetail={testPlanDetail}
-            onClose={handleCloseDetail}
-            onNavigateToItem={handleSelectItem}
-          />
+          <ErrorBoundary fallback="Detail panel failed to render">
+            <DetailPanel
+              item={selected}
+              allItems={items}
+              worklists={worklists}
+              testPlans={testPlans}
+              settings={settings}
+              worklistDetail={worklistDetail}
+              testPlanDetail={testPlanDetail}
+              onClose={handleCloseDetail}
+              onNavigateToItem={handleSelectItem}
+            />
+          </ErrorBoundary>
         )}
       </div>
 

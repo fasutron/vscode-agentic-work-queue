@@ -32594,7 +32594,7 @@
       if (filters.search) {
         const q = filters.search.toLowerCase();
         result = result.filter(
-          (i) => i.title.toLowerCase().includes(q) || i.id.toLowerCase().includes(q) || typeof i.summary === "string" && i.summary.toLowerCase().includes(q) || i.tags?.some((t) => t.toLowerCase().includes(q))
+          (i) => (i.title ?? "").toLowerCase().includes(q) || (i.id ?? "").toLowerCase().includes(q) || typeof i.summary === "string" && i.summary.toLowerCase().includes(q) || Array.isArray(i.summary) && i.summary.some((s) => s.toLowerCase().includes(q)) || i.tags?.some((t) => typeof t === "string" && t.toLowerCase().includes(q))
         );
       }
       result.sort((a, b) => {
@@ -37425,19 +37425,24 @@
                 item.documents.length,
                 ")"
               ] }),
-              item.documents.map((doc, i) => /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
-                "div",
-                {
-                  style: { fontSize: 12, color: "var(--vscode-textLink-foreground)", cursor: "pointer", marginTop: 2 },
-                  onClick: () => postToExtension({ type: "openSpec", data: { itemId: item.id, docIndex: i } }),
-                  children: [
-                    doc.type,
-                    ": ",
-                    doc.path.split("/").pop()
-                  ]
-                },
-                i
-              ))
+              item.documents.map((doc, i) => {
+                const docPath = typeof doc === "string" ? doc : doc?.path;
+                const docType = typeof doc === "string" ? "doc" : doc?.type || "doc";
+                const displayName = docPath ? docPath.split("/").pop() : `Document ${i + 1}`;
+                return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(
+                  "div",
+                  {
+                    style: { fontSize: 12, color: "var(--vscode-textLink-foreground)", cursor: "pointer", marginTop: 2 },
+                    onClick: () => postToExtension({ type: "openSpec", data: { itemId: item.id, docIndex: i } }),
+                    children: [
+                      docType,
+                      ": ",
+                      displayName
+                    ]
+                  },
+                  i
+                );
+              })
             ] }),
             worklist && worklist.total > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "detail-label", children: "Worklist Progress" }),
@@ -46133,7 +46138,7 @@
               onSwitchToList: handleSwitchToList
             }
           ),
-          activeTab === "list" && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+          activeTab === "list" && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(ErrorBoundary, { fallback: "List failed to render", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
             ListView,
             {
               items,
@@ -46141,7 +46146,7 @@
               onItemClick: handleSelectItem,
               presetFilter
             }
-          ),
+          ) }),
           activeTab === "graph" && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(ErrorBoundary, { fallback: "Graph failed to render", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
             DependencyGraph,
             {
@@ -46152,7 +46157,7 @@
           ) }),
           activeTab === "settings" && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(SettingsPanel, { settings })
         ] }),
-        selected && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
+        selected && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(ErrorBoundary, { fallback: "Detail panel failed to render", children: /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
           DetailPanel,
           {
             item: selected,
@@ -46165,7 +46170,7 @@
             onClose: handleCloseDetail,
             onNavigateToItem: handleSelectItem
           }
-        )
+        ) })
       ] }),
       toast && /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(
         "div",

@@ -657,15 +657,21 @@ export default function DetailPanel({ item, allItems, worklists, testPlans, sett
               {item.documents && item.documents.length > 0 && (
                 <div className="detail-field">
                   <span className="detail-label">Documents ({item.documents.length})</span>
-                  {item.documents.map((doc, i) => (
-                    <div
-                      key={i}
-                      style={{ fontSize: 12, color: 'var(--vscode-textLink-foreground)', cursor: 'pointer', marginTop: 2 }}
-                      onClick={() => postToExtension({ type: 'openSpec', data: { itemId: item.id, docIndex: i } })}
-                    >
-                      {doc.type}: {doc.path.split('/').pop()}
-                    </div>
-                  ))}
+                  {item.documents.map((doc, i) => {
+                    // Handle both object {type, path} and plain string formats
+                    const docPath = typeof doc === 'string' ? doc : doc?.path;
+                    const docType = typeof doc === 'string' ? 'doc' : (doc?.type || 'doc');
+                    const displayName = docPath ? docPath.split('/').pop() : `Document ${i + 1}`;
+                    return (
+                      <div
+                        key={i}
+                        style={{ fontSize: 12, color: 'var(--vscode-textLink-foreground)', cursor: 'pointer', marginTop: 2 }}
+                        onClick={() => postToExtension({ type: 'openSpec', data: { itemId: item.id, docIndex: i } })}
+                      >
+                        {docType}: {displayName}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
