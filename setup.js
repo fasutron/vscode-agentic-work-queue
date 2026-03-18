@@ -602,6 +602,27 @@ async function main() {
   console.log(`     and assign your preferred key.\n`);
   console.log(`  ${color.dim('CLI help:')} documents/wq-system/wq help\n`);
 
+  if (!installOnly) {
+    const wqDir = path.join('documents', 'wq-system');
+    const isWin = process.platform === 'win32';
+    const stepNum = !installOnly ? '4.' : '3.';
+    console.log(`  ${color.brightGreen(stepNum)} ${color.bold('Short CLI alias')} ${color.dim('(optional)')}`);
+    console.log(`     To use ${color.cyan('wq')} and ${color.cyan('wl')} without the full path:\n`);
+    if (isWin) {
+      console.log(`     ${color.dim('PowerShell (current session):')}`);
+      console.log(`     ${color.cyan(`$env:Path += ";$PWD\\${wqDir}"`)}\n`);
+      console.log(`     ${color.dim('CMD (current session):')}`);
+      console.log(`     ${color.cyan(`set PATH=%PATH%;%CD%\\${wqDir}`)}\n`);
+      console.log(`     ${color.dim('Git Bash (add to ~/.bashrc for permanent):')}`);
+      console.log(`     ${color.cyan(`export PATH="$PATH:$PWD/${wqDir}"`)}\n`);
+    } else {
+      console.log(`     ${color.dim('Current session:')}`);
+      console.log(`     ${color.cyan(`export PATH="$PATH:$PWD/${wqDir}"`)}\n`);
+      console.log(`     ${color.dim('Permanent (add to ~/.bashrc or ~/.zshrc):')}`);
+      console.log(`     ${color.cyan(`export PATH="$PATH:/path/to/project/${wqDir}"`)}\n`);
+    }
+  }
+
   if (!updateMode) {
     console.log(color.dim(`  To update later: git pull this repo, then run:`));
     console.log(color.dim(`  node ${path.relative(targetRoot, path.join(sourceRoot, 'setup.js'))} --update ${targetRoot === process.cwd() ? '' : targetRoot}`));
