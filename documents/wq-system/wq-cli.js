@@ -75,9 +75,18 @@ function saveWQ(wq) {
   fs.writeFileSync(WQ_PATH, JSON.stringify(wq, null, 2));
 }
 
+function normalizeId(id) {
+  const upper = id.toUpperCase();
+  const match = upper.match(/^WQ-(\d+)$/);
+  if (match) {
+    return `WQ-${match[1].padStart(3, '0')}`;
+  }
+  return upper;
+}
+
 function findItem(wq, id) {
-  const normalized = id.toUpperCase();
-  return wq.items.find(item => item.id.toUpperCase() === normalized);
+  const normalized = normalizeId(id);
+  return wq.items.find(item => normalizeId(item.id) === normalized);
 }
 
 function getNextId(wq) {
@@ -85,7 +94,7 @@ function getNextId(wq) {
     const num = parseInt(item.id.replace('WQ-', ''));
     return num > max ? num : max;
   }, 0);
-  return `WQ-${maxId + 1}`;
+  return `WQ-${String(maxId + 1).padStart(3, '0')}`;
 }
 
 function parseArgs(args) {
