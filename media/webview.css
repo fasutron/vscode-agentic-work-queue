@@ -302,6 +302,32 @@ body {
 }
 .detail-value { font-size: 13px; }
 
+/* --- Click-to-edit fields --- */
+.detail-value-editable {
+  cursor: text;
+  border-radius: 3px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  font-size: 13px;
+}
+.detail-value-editable:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.detail-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 6px;
+  font-size: 13px;
+  font-family: inherit;
+  border-radius: 4px;
+  border: 1px solid var(--vscode-focusBorder);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  outline: none;
+  resize: vertical;
+}
+
 /* --- Inline editable selects --- */
 .inline-select {
   background: var(--vscode-input-background);

@@ -75,4 +75,5 @@ export type WebviewToExtensionMessage =
   | { type: 'requestTestPlanDetail'; data: { wqId: string } }
   | { type: 'saveTestPlanTests'; data: { wqId: string; sections: { heading: string; tests: TestItemView[] }[] } }
   | { type: 'createBugFromTest'; data: { wqId: string; testText: string } }
-  | { type: 'createItem'; data: { title: string; track: string; phase: string } };
+  | { type: 'createItem'; data: { title: string; track: string; phase: string } }
+  | { type: 'createSpec'; data: { itemId: string; docType?: string } };

@@ -37298,6 +37298,32 @@
         onNavigateToItem(full);
       }
     };
+    const [editingField, setEditingField] = (0, import_react8.useState)(null);
+    const [editValue, setEditValue] = (0, import_react8.useState)("");
+    (0, import_react8.useEffect)(() => {
+      setEditingField(null);
+    }, [item.id]);
+    const startEdit = (field, currentValue) => {
+      setEditingField(field);
+      setEditValue(currentValue);
+    };
+    const commitEdit = (field) => {
+      const trimmed = editValue.trim();
+      if (trimmed !== "" && trimmed !== String(item[field] ?? "")) {
+        handleEditField(field, trimmed);
+      }
+      setEditingField(null);
+    };
+    const cancelEdit = () => setEditingField(null);
+    const editKeyHandler = (field, multiline) => (e) => {
+      if (e.key === "Escape") {
+        cancelEdit();
+      } else if (e.key === "Enter" && !multiline) {
+        commitEdit(field);
+      } else if (e.key === "Enter" && e.ctrlKey && multiline) {
+        commitEdit(field);
+      }
+    };
     const summary = typeof item.summary === "string" ? item.summary : Array.isArray(item.summary) ? item.summary.join("\n") : "";
     return /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-overlay", children: [
       /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "detail-backdrop", onClick: onClose }),
@@ -37361,11 +37387,51 @@
           activeTab === "details" && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)(import_jsx_runtime4.Fragment, { children: [
             /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "detail-label", children: "Title" }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "detail-value", style: { fontWeight: 500, fontSize: 15 }, children: item.title })
+              editingField === "title" ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                "input",
+                {
+                  className: "detail-edit-input",
+                  style: { fontWeight: 500, fontSize: 15 },
+                  value: editValue,
+                  onChange: (e) => setEditValue(e.target.value),
+                  onKeyDown: editKeyHandler("title"),
+                  onBlur: () => commitEdit("title"),
+                  autoFocus: true
+                }
+              ) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                "div",
+                {
+                  className: "detail-value detail-value-editable",
+                  style: { fontWeight: 500, fontSize: 15 },
+                  onClick: () => startEdit("title", item.title),
+                  title: "Click to edit",
+                  children: item.title
+                }
+              )
             ] }),
-            summary && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "detail-label", children: "Summary" }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "detail-value", style: { whiteSpace: "pre-wrap" }, children: summary })
+              editingField === "summary" ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                "textarea",
+                {
+                  className: "detail-edit-input",
+                  rows: 4,
+                  value: editValue,
+                  onChange: (e) => setEditValue(e.target.value),
+                  onKeyDown: editKeyHandler("summary", true),
+                  onBlur: () => commitEdit("summary"),
+                  autoFocus: true
+                }
+              ) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                "div",
+                {
+                  className: "detail-value detail-value-editable",
+                  style: { whiteSpace: "pre-wrap" },
+                  onClick: () => startEdit("summary", summary),
+                  title: "Click to edit (Ctrl+Enter to save)",
+                  children: summary || /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { style: { color: "var(--vscode-descriptionForeground)", fontStyle: "italic" }, children: "Click to add summary" })
+                }
+              )
             ] }),
             /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-row", children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
@@ -37408,24 +37474,89 @@
             /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-row-2", children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "detail-label", children: "Priority" }),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "detail-value", children: item.priority })
+                editingField === "priority" ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                  "input",
+                  {
+                    className: "detail-edit-input",
+                    type: "number",
+                    min: 1,
+                    max: 100,
+                    value: editValue,
+                    onChange: (e) => setEditValue(e.target.value),
+                    onKeyDown: editKeyHandler("priority"),
+                    onBlur: () => commitEdit("priority"),
+                    autoFocus: true
+                  }
+                ) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                  "div",
+                  {
+                    className: "detail-value detail-value-editable",
+                    onClick: () => startEdit("priority", String(item.priority)),
+                    title: "Click to edit",
+                    children: item.priority
+                  }
+                )
               ] }),
               /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
                 /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "detail-label", children: "Effort" }),
-                /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "detail-value", children: item.effort || "-" })
+                editingField === "effort" ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                  "input",
+                  {
+                    className: "detail-edit-input",
+                    placeholder: "e.g. 2h, 1d",
+                    value: editValue,
+                    onChange: (e) => setEditValue(e.target.value),
+                    onKeyDown: editKeyHandler("effort"),
+                    onBlur: () => commitEdit("effort"),
+                    autoFocus: true
+                  }
+                ) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                  "div",
+                  {
+                    className: "detail-value detail-value-editable",
+                    onClick: () => startEdit("effort", item.effort || ""),
+                    title: "Click to edit",
+                    children: item.effort || /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { style: { color: "var(--vscode-descriptionForeground)" }, children: "-" })
+                  }
+                )
               ] })
             ] }),
-            item.tags && item.tags.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "detail-label", children: "Tags" }),
-              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "detail-tags", children: item.tags.map((t) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "detail-tag", children: t }, t)) })
+              editingField === "tags" ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                "input",
+                {
+                  className: "detail-edit-input",
+                  placeholder: "tag1, tag2, tag3",
+                  value: editValue,
+                  onChange: (e) => setEditValue(e.target.value),
+                  onKeyDown: editKeyHandler("tags"),
+                  onBlur: () => {
+                    const trimmed = editValue.trim();
+                    const currentTags = (item.tags || []).join(",");
+                    if (trimmed !== currentTags) {
+                      handleEditField("tags", trimmed);
+                    }
+                    setEditingField(null);
+                  },
+                  autoFocus: true
+                }
+              ) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                "div",
+                {
+                  className: "detail-value-editable",
+                  onClick: () => startEdit("tags", (item.tags || []).join(", ")),
+                  title: "Click to edit",
+                  children: item.tags && item.tags.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("div", { className: "detail-tags", children: item.tags.map((t) => /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "detail-tag", children: t }, t)) }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { style: { color: "var(--vscode-descriptionForeground)", fontStyle: "italic", fontSize: 12 }, children: "Click to add tags" })
+                }
+              )
             ] }),
-            item.documents && item.documents.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("span", { className: "detail-label", children: [
-                "Documents (",
-                item.documents.length,
-                ")"
+                "Documents ",
+                item.documents?.length ? `(${item.documents.length})` : ""
               ] }),
-              item.documents.map((doc, i) => {
+              item.documents && item.documents.length > 0 && item.documents.map((doc, i) => {
                 const docPath = typeof doc === "string" ? doc : doc?.path;
                 const docType = typeof doc === "string" ? "doc" : doc?.type || "doc";
                 const displayName = docPath ? docPath.split("/").pop() : `Document ${i + 1}`;
@@ -37442,7 +37573,16 @@
                   },
                   i
                 );
-              })
+              }),
+              /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+                "button",
+                {
+                  className: "btn btn-ghost",
+                  style: { marginTop: 4, fontSize: 11, padding: "2px 8px" },
+                  onClick: () => postToExtension({ type: "createSpec", data: { itemId: item.id, docType: "spec" } }),
+                  children: "+ Create Spec"
+                }
+              )
             ] }),
             worklist && worklist.total > 0 && /* @__PURE__ */ (0, import_jsx_runtime4.jsxs)("div", { className: "detail-field", children: [
               /* @__PURE__ */ (0, import_jsx_runtime4.jsx)("span", { className: "detail-label", children: "Worklist Progress" }),

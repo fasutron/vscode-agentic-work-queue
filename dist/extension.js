@@ -685,6 +685,7 @@ var WQDataService = class {
 // src/services/ClaudeCodeService.ts
 var vscode2 = __toESM(require("vscode"));
 var import_child_process = require("child_process");
+var fs2 = __toESM(require("fs"));
 var path2 = __toESM(require("path"));
 var ClaudeCodeService = class {
   outputChannel;
@@ -769,6 +770,46 @@ var ClaudeCodeService = class {
         }
       });
     });
+  }
+  /**
+   * Create a stub spec/doc file for an existing item and link it via CLI.
+   * Returns the absolute path to the created file, or undefined on failure.
+   */
+  async createSpec(wqId, title, statusFolder, docType = "spec") {
+    const prefix = docType.toUpperCase();
+    const safeId = wqId.replace("-", "");
+    const safeTitle = title.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "");
+    const filename = `${prefix}_${safeId}_${safeTitle}.md`;
+    const folder = statusFolder || "1-pending";
+    const relPath = `${folder}/${filename}`;
+    const absDir = path2.join(this.workspaceRoot, "documents", "handoffs", folder);
+    const absPath = path2.join(absDir, filename);
+    if (!fs2.existsSync(absDir)) {
+      fs2.mkdirSync(absDir, { recursive: true });
+    }
+    const content = [
+      `# ${title}`,
+      "",
+      `**WQ:** ${wqId}`,
+      `**Status:** ${docType}`,
+      "",
+      "## Overview",
+      "",
+      "_TODO: Add description_",
+      ""
+    ].join("\n");
+    try {
+      fs2.writeFileSync(absPath, content, "utf-8");
+      this.outputChannel.appendLine(`[SPEC] Created ${relPath}`);
+    } catch (e) {
+      vscode2.window.showErrorMessage(`Failed to create spec file: ${e.message}`);
+      return void 0;
+    }
+    const linked = await this.editField(wqId, "add-doc", `${docType}:${relPath}`);
+    if (!linked) {
+      return void 0;
+    }
+    return absPath;
   }
   async delegateTriage(phase) {
     const filter = phase || "planning";
@@ -1420,6 +1461,31 @@ var WQWebviewProvider = class {
           if (success) {
             this.postMessage({ type: "toast", data: { message: `Created: ${title}` } });
             setTimeout(() => this.pushDataUpdate(), 300);
+          }
+        });
+        break;
+      }
+      case "createSpec": {
+        const { itemId, docType } = msg.data;
+        const specItem = this.dataService.getItemById(itemId);
+        if (!specItem) {
+          this.postMessage({ type: "toast", data: { message: `Item ${itemId} not found` } });
+          break;
+        }
+        const settings = this.dataService.getSettings();
+        const statusEntry = settings.statuses.find((s) => s.id === specItem.status);
+        const folder = statusEntry?.folder || "1-pending";
+        this.claudeService.createSpec(itemId, specItem.title, folder, docType || "spec").then((absPath) => {
+          if (absPath) {
+            this.postMessage({ type: "toast", data: { message: `Created ${docType || "spec"} for ${itemId}` } });
+            setTimeout(() => {
+              this.pushDataUpdate();
+              vscode6.workspace.openTextDocument(absPath).then(
+                (doc) => vscode6.window.showTextDocument(doc, vscode6.ViewColumn.Beside),
+                () => {
+                }
+              );
+            }, 300);
           }
         });
         break;

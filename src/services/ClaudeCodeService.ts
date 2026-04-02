@@ -7,6 +7,7 @@
 
 import * as vscode from 'vscode';
 import { execFile } from 'child_process';
+import * as fs from 'fs';
 import * as path from 'path';
 import type { WQItem } from '../models/WQItem';
 
@@ -105,6 +106,55 @@ export class ClaudeCodeService implements vscode.Disposable {
         }
       });
     });
+  }
+
+  /**
+   * Create a stub spec/doc file for an existing item and link it via CLI.
+   * Returns the absolute path to the created file, or undefined on failure.
+   */
+  async createSpec(wqId: string, title: string, statusFolder: string, docType: string = 'spec'): Promise<string | undefined> {
+    const prefix = docType.toUpperCase();
+    const safeId = wqId.replace('-', '');
+    const safeTitle = title.replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const filename = `${prefix}_${safeId}_${safeTitle}.md`;
+    const folder = statusFolder || '1-pending';
+    const relPath = `${folder}/${filename}`;
+    const absDir = path.join(this.workspaceRoot, 'documents', 'handoffs', folder);
+    const absPath = path.join(absDir, filename);
+
+    // Create directory if needed
+    if (!fs.existsSync(absDir)) {
+      fs.mkdirSync(absDir, { recursive: true });
+    }
+
+    // Write stub content
+    const content = [
+      `# ${title}`,
+      '',
+      `**WQ:** ${wqId}`,
+      `**Status:** ${docType}`,
+      '',
+      '## Overview',
+      '',
+      '_TODO: Add description_',
+      '',
+    ].join('\n');
+
+    try {
+      fs.writeFileSync(absPath, content, 'utf-8');
+      this.outputChannel.appendLine(`[SPEC] Created ${relPath}`);
+    } catch (e: any) {
+      vscode.window.showErrorMessage(`Failed to create spec file: ${e.message}`);
+      return undefined;
+    }
+
+    // Link to item via CLI
+    const linked = await this.editField(wqId, 'add-doc', `${docType}:${relPath}`);
+    if (!linked) {
+      return undefined;
+    }
+
+    return absPath;
   }
 
   async delegateTriage(phase?: string): Promise<void> {

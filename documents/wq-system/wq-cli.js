@@ -48,6 +48,8 @@ function getWQSettings(wq) {
       VALID_STATUSES: (s.statuses || []).map(e => e.id),
       VALID_TRACKS: (s.tracks || []).map(e => e.id),
       VALID_PHASES: (s.phases || []).map(e => e.id),
+      VALID_PROJECTS: (s.projects || []).map(e => e.id),
+      REQUIRE_PROJECT: s.requireProject || false,
     };
   }
   return {
@@ -55,6 +57,8 @@ function getWQSettings(wq) {
     VALID_STATUSES: Object.keys(DEFAULT_STATUS_FOLDER),
     VALID_TRACKS: DEFAULT_VALID_TRACKS,
     VALID_PHASES: DEFAULT_VALID_PHASES,
+    VALID_PROJECTS: [],
+    REQUIRE_PROJECT: false,
   };
 }
 
@@ -159,6 +163,16 @@ function cmdCreate(args) {
     console.error(`Error: --phase is required. Valid: ${cfg.VALID_PHASES.join(', ')}`);
     process.exit(1);
   }
+
+  if (cfg.REQUIRE_PROJECT && !parsed.project) {
+    console.error('Error: --project is required. Valid: ' + cfg.VALID_PROJECTS.join(', '));
+    process.exit(1);
+  }
+  if (parsed.project && cfg.VALID_PROJECTS.length > 0 && !cfg.VALID_PROJECTS.includes(parsed.project)) {
+    console.error(`Error: Invalid project "${parsed.project}". Valid: ${cfg.VALID_PROJECTS.join(', ')}`);
+    process.exit(1);
+  }
+
   const ts = new Date().toISOString();
   const id = getNextId(wq);
 
@@ -169,6 +183,7 @@ function cmdCreate(args) {
     status: 'intake',
     track: parsed.track,
     phase: parsed.phase,
+    ...(parsed.project ? { project: parsed.project } : {}),
     priority: parseInt(parsed.priority) || 50,
     effort: parsed.effort || null,
     tags: Array.isArray(parsed.tags) ? parsed.tags : (parsed.tags ? [parsed.tags] : []),
@@ -201,6 +216,7 @@ function cmdCreate(args) {
 
   console.log(`\n✅ Created ${id}: "${title}"`);
   console.log(`   Track: ${newItem.track} | Phase: ${newItem.phase} | Priority: ${newItem.priority}`);
+  if (newItem.project) { console.log(`   Project: ${newItem.project}`); }
   console.log(`   Status: intake | Folder: 1-pending/`);
 
   // Output JSON for programmatic use
@@ -324,7 +340,7 @@ function cmdEdit(args) {
 
   const changes = [];
 
-  // Validate track/phase if provided
+  // Validate track/phase/project if provided
   if (parsed.track !== undefined && !cfg.VALID_TRACKS.includes(parsed.track)) {
     console.error(`Error: Invalid track "${parsed.track}". Valid: ${cfg.VALID_TRACKS.join(', ')}`);
     process.exit(1);
@@ -333,9 +349,13 @@ function cmdEdit(args) {
     console.error(`Error: Invalid phase "${parsed.phase}". Valid: ${cfg.VALID_PHASES.join(', ')}`);
     process.exit(1);
   }
+  if (parsed.project !== undefined && cfg.VALID_PROJECTS.length > 0 && !cfg.VALID_PROJECTS.includes(parsed.project)) {
+    console.error(`Error: Invalid project "${parsed.project}". Valid: ${cfg.VALID_PROJECTS.join(', ')}`);
+    process.exit(1);
+  }
 
   // Simple field updates
-  const simpleFields = ['title', 'summary', 'effort', 'track', 'phase'];
+  const simpleFields = ['title', 'summary', 'effort', 'track', 'phase', 'project'];
   for (const field of simpleFields) {
     if (parsed[field] !== undefined) {
       changes.push(`${field}: "${item[field]}" → "${parsed[field]}"`);
@@ -428,6 +448,7 @@ function cmdView(args) {
 
   console.log(`\n## ${item.id}: ${item.title}\n`);
   console.log(`**Status**: ${item.status} (files in ${folder}/)`);
+  if (item.project) { console.log(`**Project**: ${item.project}`); }
   console.log(`**Track**: ${item.track} | **Phase**: ${item.phase}`);
   console.log(`**Priority**: ${item.priority}${item.effort ? ` | **Effort**: ${item.effort}` : ''}`);
 
@@ -474,23 +495,28 @@ function cmdView(args) {
 }
 
 function cmdList(args) {
-  const [filter] = args;
+  const parsed = parseArgs(args);
+  const filter = parsed._positional[0];
+  const projectFilter = parsed.project
+    ? (Array.isArray(parsed.project) ? parsed.project : parsed.project.split(',').map(p => p.trim()))
+    : null;
+
   const wq = loadWQ();
   const cfg = getWQSettings(wq);
 
   let items = wq.items;
-  let filterLabel = 'all active';
+  const labelParts = [];
 
   if (filter) {
     if (cfg.VALID_STATUSES.includes(filter)) {
       items = items.filter(i => i.status === filter);
-      filterLabel = `status=${filter}`;
+      labelParts.push(`status=${filter}`);
     } else if (cfg.VALID_TRACKS.includes(filter)) {
       items = items.filter(i => i.track === filter);
-      filterLabel = `track=${filter}`;
+      labelParts.push(`track=${filter}`);
     } else if (cfg.VALID_PHASES.includes(filter)) {
       items = items.filter(i => i.phase === filter);
-      filterLabel = `phase=${filter}`;
+      labelParts.push(`phase=${filter}`);
     } else {
       console.error(`Unknown filter: ${filter}`);
       console.error(`Valid: ${[...cfg.VALID_STATUSES, ...cfg.VALID_TRACKS, ...cfg.VALID_PHASES].join(', ')}`);
@@ -499,18 +525,37 @@ function cmdList(args) {
   } else {
     // Default: non-done, non-archived
     items = items.filter(i => !['done', 'archive'].includes(i.status));
+    labelParts.push('all active');
+  }
+
+  if (projectFilter) {
+    items = items.filter(i => i.project && projectFilter.includes(i.project));
+    labelParts.push(`project=${projectFilter.join(',')}`);
   }
 
   // Sort by priority
   items.sort((a, b) => a.priority - b.priority);
 
-  console.log(`\n## Work Queue: ${filterLabel}\n`);
-  console.log('| ID | Title | Track | Phase | Priority | Status |');
-  console.log('|----|-------|-------|-------|----------|--------|');
+  // Show Project column if filtering by project OR any result has a project field
+  const showProject = projectFilter !== null || items.some(i => i.project);
+
+  console.log(`\n## Work Queue: ${labelParts.join(', ')}\n`);
+
+  if (showProject) {
+    console.log('| ID | Title | Project | Track | Phase | Priority | Status |');
+    console.log('|----|-------|---------|-------|-------|----------|--------|');
+  } else {
+    console.log('| ID | Title | Track | Phase | Priority | Status |');
+    console.log('|----|-------|-------|-------|----------|--------|');
+  }
 
   for (const item of items) {
     const title = item.title.length > 35 ? item.title.slice(0, 32) + '...' : item.title;
-    console.log(`| ${item.id} | ${title} | ${item.track} | ${item.phase} | ${item.priority} | ${item.status} |`);
+    if (showProject) {
+      console.log(`| ${item.id} | ${title} | ${item.project || ''} | ${item.track} | ${item.phase} | ${item.priority} | ${item.status} |`);
+    } else {
+      console.log(`| ${item.id} | ${title} | ${item.track} | ${item.phase} | ${item.priority} | ${item.status} |`);
+    }
   }
 
   console.log(`\nTotal: ${items.length} items`);
@@ -766,7 +811,7 @@ Usage:
   wq-cli.js status <WQ-ID> <new-status>
   wq-cli.js edit <WQ-ID> [options]
   wq-cli.js view <WQ-ID>
-  wq-cli.js list [filter]
+  wq-cli.js list [filter] [--project=<id>]
   wq-cli.js deps <WQ-ID> [--reverse]
   wq-cli.js deps --blocked
   wq-cli.js find <path-or-filename>
@@ -776,6 +821,7 @@ Usage:
 Create Options:
   --track=       Required. ${helpCfg.VALID_TRACKS.join(' | ')}
   --phase=       Required. ${helpCfg.VALID_PHASES.join(' | ')}
+  --project=     Project tag${helpCfg.VALID_PROJECTS.length > 0 ? ' (' + helpCfg.VALID_PROJECTS.join(' | ') + ')' : ''}${helpCfg.REQUIRE_PROJECT ? ' (required)' : ''}
   --summary=     Brief description
   --priority=    Number (lower = higher priority, default: 50)
   --effort=      Estimate: "2h", "1d", "3d", "1w"
@@ -788,6 +834,7 @@ Edit Options:
   --summary=     New summary
   --track=       New track (${helpCfg.VALID_TRACKS.join(' | ')})
   --phase=       New phase (${helpCfg.VALID_PHASES.join(' | ')})
+  --project=     New project tag${helpCfg.VALID_PROJECTS.length > 0 ? ' (' + helpCfg.VALID_PROJECTS.join(' | ') + ')' : ''}
   --priority=    New priority
   --effort=      New effort estimate
   --tags=        Replace tags (comma-separated)
@@ -795,6 +842,9 @@ Edit Options:
   --depends=     Replace dependencies
   --add-depends= Add single dependency
   --add-doc=     Add document (format: type:path)
+
+List Options:
+  --project=     Filter by project (comma-separated for multiple)
 
 Deps Options:
   --reverse      Show items that depend ON this item (reverse lookup)
@@ -810,7 +860,7 @@ Normalize:
 
 Statuses: ${helpCfg.VALID_STATUSES.join(', ')}
 Tracks: ${helpCfg.VALID_TRACKS.join(', ')}
-Phases: ${helpCfg.VALID_PHASES.join(', ')}
+Phases: ${helpCfg.VALID_PHASES.join(', ')}${helpCfg.VALID_PROJECTS.length > 0 ? '\nProjects: ' + helpCfg.VALID_PROJECTS.join(', ') : ''}
 `);
     break;
   default:

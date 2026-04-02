@@ -281,6 +281,34 @@ export class WQWebviewProvider implements vscode.Disposable {
         });
         break;
       }
+
+      case 'createSpec': {
+        const { itemId, docType } = msg.data;
+        const specItem = this.dataService.getItemById(itemId);
+        if (!specItem) {
+          this.postMessage({ type: 'toast', data: { message: `Item ${itemId} not found` } });
+          break;
+        }
+        // Determine folder from item status
+        const settings = this.dataService.getSettings();
+        const statusEntry = settings.statuses.find(s => s.id === specItem.status);
+        const folder = statusEntry?.folder || '1-pending';
+
+        this.claudeService.createSpec(itemId, specItem.title, folder, docType || 'spec').then(absPath => {
+          if (absPath) {
+            this.postMessage({ type: 'toast', data: { message: `Created ${docType || 'spec'} for ${itemId}` } });
+            setTimeout(() => {
+              this.pushDataUpdate();
+              // Auto-open the newly created file
+              vscode.workspace.openTextDocument(absPath).then(
+                doc => vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside),
+                () => { /* file may have moved — ignore */ },
+              );
+            }, 300);
+          }
+        });
+        break;
+      }
     }
   }
 

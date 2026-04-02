@@ -516,6 +516,34 @@ export default function DetailPanel({ item, allItems, worklists, testPlans, sett
     }
   };
 
+  // --- Inline editing state ---
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+
+  // Reset editing when item changes
+  useEffect(() => { setEditingField(null); }, [item.id]);
+
+  const startEdit = (field: string, currentValue: string) => {
+    setEditingField(field);
+    setEditValue(currentValue);
+  };
+
+  const commitEdit = (field: string) => {
+    const trimmed = editValue.trim();
+    if (trimmed !== '' && trimmed !== String((item as any)[field] ?? '')) {
+      handleEditField(field, trimmed);
+    }
+    setEditingField(null);
+  };
+
+  const cancelEdit = () => setEditingField(null);
+
+  const editKeyHandler = (field: string, multiline?: boolean) => (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') { cancelEdit(); }
+    else if (e.key === 'Enter' && !multiline) { commitEdit(field); }
+    else if (e.key === 'Enter' && e.ctrlKey && multiline) { commitEdit(field); }
+  };
+
   const summary = typeof item.summary === 'string'
     ? item.summary
     : Array.isArray(item.summary) ? item.summary.join('\n') : '';
@@ -583,19 +611,55 @@ export default function DetailPanel({ item, allItems, worklists, testPlans, sett
         <div className="detail-body">
           {activeTab === 'details' && (
             <>
-              {/* Title */}
+              {/* Title (click to edit) */}
               <div className="detail-field">
                 <span className="detail-label">Title</span>
-                <div className="detail-value" style={{ fontWeight: 500, fontSize: 15 }}>{item.title}</div>
+                {editingField === 'title' ? (
+                  <input
+                    className="detail-edit-input"
+                    style={{ fontWeight: 500, fontSize: 15 }}
+                    value={editValue}
+                    onChange={e => setEditValue(e.target.value)}
+                    onKeyDown={editKeyHandler('title')}
+                    onBlur={() => commitEdit('title')}
+                    autoFocus
+                  />
+                ) : (
+                  <div
+                    className="detail-value detail-value-editable"
+                    style={{ fontWeight: 500, fontSize: 15 }}
+                    onClick={() => startEdit('title', item.title)}
+                    title="Click to edit"
+                  >
+                    {item.title}
+                  </div>
+                )}
               </div>
 
-              {/* Summary */}
-              {summary && (
-                <div className="detail-field">
-                  <span className="detail-label">Summary</span>
-                  <div className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>{summary}</div>
-                </div>
-              )}
+              {/* Summary (click to edit) */}
+              <div className="detail-field">
+                <span className="detail-label">Summary</span>
+                {editingField === 'summary' ? (
+                  <textarea
+                    className="detail-edit-input"
+                    rows={4}
+                    value={editValue}
+                    onChange={e => setEditValue(e.target.value)}
+                    onKeyDown={editKeyHandler('summary', true)}
+                    onBlur={() => commitEdit('summary')}
+                    autoFocus
+                  />
+                ) : (
+                  <div
+                    className="detail-value detail-value-editable"
+                    style={{ whiteSpace: 'pre-wrap' }}
+                    onClick={() => startEdit('summary', summary)}
+                    title="Click to edit (Ctrl+Enter to save)"
+                  >
+                    {summary || <span style={{ color: 'var(--vscode-descriptionForeground)', fontStyle: 'italic' }}>Click to add summary</span>}
+                  </div>
+                )}
+              </div>
 
               {/* Status / Track / Phase (editable) */}
               <div className="detail-row">
@@ -631,49 +695,119 @@ export default function DetailPanel({ item, allItems, worklists, testPlans, sett
                 </div>
               </div>
 
-              {/* Priority / Effort */}
+              {/* Priority / Effort (click to edit) */}
               <div className="detail-row-2">
                 <div className="detail-field">
                   <span className="detail-label">Priority</span>
-                  <div className="detail-value">{item.priority}</div>
+                  {editingField === 'priority' ? (
+                    <input
+                      className="detail-edit-input"
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={editValue}
+                      onChange={e => setEditValue(e.target.value)}
+                      onKeyDown={editKeyHandler('priority')}
+                      onBlur={() => commitEdit('priority')}
+                      autoFocus
+                    />
+                  ) : (
+                    <div
+                      className="detail-value detail-value-editable"
+                      onClick={() => startEdit('priority', String(item.priority))}
+                      title="Click to edit"
+                    >
+                      {item.priority}
+                    </div>
+                  )}
                 </div>
                 <div className="detail-field">
                   <span className="detail-label">Effort</span>
-                  <div className="detail-value">{item.effort || '-'}</div>
+                  {editingField === 'effort' ? (
+                    <input
+                      className="detail-edit-input"
+                      placeholder="e.g. 2h, 1d"
+                      value={editValue}
+                      onChange={e => setEditValue(e.target.value)}
+                      onKeyDown={editKeyHandler('effort')}
+                      onBlur={() => commitEdit('effort')}
+                      autoFocus
+                    />
+                  ) : (
+                    <div
+                      className="detail-value detail-value-editable"
+                      onClick={() => startEdit('effort', item.effort || '')}
+                      title="Click to edit"
+                    >
+                      {item.effort || <span style={{ color: 'var(--vscode-descriptionForeground)' }}>-</span>}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Tags */}
-              {item.tags && item.tags.length > 0 && (
-                <div className="detail-field">
-                  <span className="detail-label">Tags</span>
-                  <div className="detail-tags">
-                    {item.tags.map(t => <span key={t} className="detail-tag">{t}</span>)}
-                  </div>
-                </div>
-              )}
-
-              {/* Documents */}
-              {item.documents && item.documents.length > 0 && (
-                <div className="detail-field">
-                  <span className="detail-label">Documents ({item.documents.length})</span>
-                  {item.documents.map((doc, i) => {
-                    // Handle both object {type, path} and plain string formats
-                    const docPath = typeof doc === 'string' ? doc : doc?.path;
-                    const docType = typeof doc === 'string' ? 'doc' : (doc?.type || 'doc');
-                    const displayName = docPath ? docPath.split('/').pop() : `Document ${i + 1}`;
-                    return (
-                      <div
-                        key={i}
-                        style={{ fontSize: 12, color: 'var(--vscode-textLink-foreground)', cursor: 'pointer', marginTop: 2 }}
-                        onClick={() => postToExtension({ type: 'openSpec', data: { itemId: item.id, docIndex: i } })}
-                      >
-                        {docType}: {displayName}
+              {/* Tags (click to edit) */}
+              <div className="detail-field">
+                <span className="detail-label">Tags</span>
+                {editingField === 'tags' ? (
+                  <input
+                    className="detail-edit-input"
+                    placeholder="tag1, tag2, tag3"
+                    value={editValue}
+                    onChange={e => setEditValue(e.target.value)}
+                    onKeyDown={editKeyHandler('tags')}
+                    onBlur={() => {
+                      const trimmed = editValue.trim();
+                      const currentTags = (item.tags || []).join(',');
+                      if (trimmed !== currentTags) {
+                        handleEditField('tags', trimmed);
+                      }
+                      setEditingField(null);
+                    }}
+                    autoFocus
+                  />
+                ) : (
+                  <div
+                    className="detail-value-editable"
+                    onClick={() => startEdit('tags', (item.tags || []).join(', '))}
+                    title="Click to edit"
+                  >
+                    {item.tags && item.tags.length > 0 ? (
+                      <div className="detail-tags">
+                        {item.tags.map(t => <span key={t} className="detail-tag">{t}</span>)}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                    ) : (
+                      <span style={{ color: 'var(--vscode-descriptionForeground)', fontStyle: 'italic', fontSize: 12 }}>Click to add tags</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Documents + Create Spec */}
+              <div className="detail-field">
+                <span className="detail-label">Documents {item.documents?.length ? `(${item.documents.length})` : ''}</span>
+                {item.documents && item.documents.length > 0 && item.documents.map((doc, i) => {
+                  // Handle both object {type, path} and plain string formats
+                  const docPath = typeof doc === 'string' ? doc : doc?.path;
+                  const docType = typeof doc === 'string' ? 'doc' : (doc?.type || 'doc');
+                  const displayName = docPath ? docPath.split('/').pop() : `Document ${i + 1}`;
+                  return (
+                    <div
+                      key={i}
+                      style={{ fontSize: 12, color: 'var(--vscode-textLink-foreground)', cursor: 'pointer', marginTop: 2 }}
+                      onClick={() => postToExtension({ type: 'openSpec', data: { itemId: item.id, docIndex: i } })}
+                    >
+                      {docType}: {displayName}
+                    </div>
+                  );
+                })}
+                <button
+                  className="btn btn-ghost"
+                  style={{ marginTop: 4, fontSize: 11, padding: '2px 8px' }}
+                  onClick={() => postToExtension({ type: 'createSpec', data: { itemId: item.id, docType: 'spec' } })}
+                >
+                  + Create Spec
+                </button>
+              </div>
 
               {/* Worklist progress — clickable link to switch to worklist tab */}
               {worklist && worklist.total > 0 && (
